@@ -76,10 +76,11 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
       );
       if (!dimension.disabled) {
         document.fontSize(9.5).fillColor(INK).text(pdfText(dimension.reasoning));
-        dimension.quotes.forEach((quote) => {
+        const quotes = Array.isArray(dimension.quotes) ? dimension.quotes : [];
+        quotes.forEach((quote) => {
           document.font("Courier").fontSize(8.5).fillColor(INK_MUTED).text(`"${pdfText(quote)}"`);
         });
-        if (dimension.quotes.length === 0) {
+        if (quotes.length === 0) {
           document.font("Helvetica-Oblique").fontSize(8.5).text("No verbatim transcript evidence for this claim.");
         }
         document.font("Helvetica").fontSize(9).fillColor(TEAL).text(`Quick fix: ${pdfText(dimension.quickFix)}`);
