@@ -105,7 +105,7 @@ export function ReportDocument({ report, callType }: { report: ScoredReport; cal
             </View>
             <Text style={styles.dimBand}>{pdfText(dim.disabled ? dim.disabledReason ?? "Not applicable to this call" : dim.band)}</Text>
             {!dim.disabled && (
-              <>
+              <View>
                 <Text style={styles.dimReasoning}>{pdfText(dim.reasoning)}</Text>
                 {dim.quotes.map((q, i) => (
                   <Text key={i} style={styles.quote}>&ldquo;{pdfText(q)}&rdquo;</Text>
@@ -116,7 +116,7 @@ export function ReportDocument({ report, callType }: { report: ScoredReport; cal
                   </Text>
                 )}
                 <Text style={styles.quickFix}>Quick fix: {pdfText(dim.quickFix)}</Text>
-              </>
+              </View>
             )}
           </View>
         ))}
