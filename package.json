@@ -10,7 +10,7 @@
     "inngest:dev": "inngest-cli dev"
   },
   "dependencies": {
-    "@react-pdf/renderer": "^4.1.6",
+    "@react-pdf/renderer": "^3.4.5",
     "@supabase/supabase-js": "^2.45.4",
     "inngest": "^3.27.4",
     "next": "^15.0.3",
