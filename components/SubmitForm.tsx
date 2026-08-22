@@ -28,7 +28,15 @@ export function SubmitForm() {
         body: JSON.stringify({ callType, transcript })
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: { id?: string; error?: string } = {};
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          throw new Error(`The server returned an invalid response (${res.status}).`);
+        }
+      }
 
       if (!res.ok) {
         throw new Error(data.error ?? "Failed to start the evaluation.");

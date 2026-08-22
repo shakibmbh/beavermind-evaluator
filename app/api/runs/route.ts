@@ -34,24 +34,34 @@ export async function POST(req: Request) {
     );
   }
 
-  const supabase = supabaseServer();
+  try {
+    const supabase = supabaseServer();
 
-  const { data: run, error } = await supabase
-    .from("runs")
-    .insert({ call_type: callType as CallType, transcript, status: "queued" })
-    .select("id")
-    .single();
+    const { data: run, error } = await supabase
+      .from("runs")
+      .insert({ call_type: callType as CallType, transcript, status: "queued" })
+      .select("id")
+      .single();
 
-  if (error || !run) {
-    return NextResponse.json({ error: `Failed to create run: ${error?.message}` }, { status: 500 });
+    if (error || !run) {
+      return NextResponse.json(
+        { error: `Failed to create run: ${error?.message ?? "No run was returned."}` },
+        { status: 500 }
+      );
+    }
+
+    // This returns as soon as Inngest has accepted the event.
+    await inngest.send({
+      name: "run/created",
+      data: { runId: run.id, callType, transcript }
+    });
+
+    return NextResponse.json({ id: run.id }, { status: 201 });
+  } catch (error) {
+    console.error("Failed to start evaluation", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to start the evaluation." },
+      { status: 500 }
+    );
   }
-
-  // Fire-and-forget: this returns as soon as Inngest has accepted the event,
-  // it does not wait for scoring to happen.
-  await inngest.send({
-    name: "run/created",
-    data: { runId: run.id, callType, transcript }
-  });
-
-  return NextResponse.json({ id: run.id }, { status: 201 });
 }
