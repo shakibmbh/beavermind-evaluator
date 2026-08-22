@@ -14,6 +14,32 @@ create table if not exists runs (
   updated_at timestamptz not null default now()
 );
 
+-- Upgrade an existing runs table created before updated_at was introduced.
+alter table runs
+  add column if not exists updated_at timestamptz not null default now();
+
+-- Align the earlier result_json name with the column used by the application.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'runs' and column_name = 'result_json'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'runs' and column_name = 'result'
+  ) then
+    alter table runs rename column result_json to result;
+  end if;
+end;
+$$;
+
+-- Upgrade older runs tables that only contained the initial status fields.
+alter table runs
+  add column if not exists error_message text,
+  add column if not exists result jsonb,
+  add column if not exists pdf_url text,
+  add column if not exists created_at timestamptz not null default now();
+
 -- Keep updated_at current on every write.
 create or replace function set_updated_at()
 returns trigger as $$
@@ -42,8 +68,24 @@ create policy "anon can read runs"
   using (true);
 
 -- Enable realtime so the /run/[id] page can subscribe to status changes
--- instead of polling. (Safe to run twice; Supabase ignores duplicates.)
-alter publication supabase_realtime add table runs;
+-- instead of polling. Check the catalog first because PostgreSQL raises an
+-- error if the table is already present.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'runs'
+  ) then
+    alter publication supabase_realtime add table runs;
+  end if;
+end;
+$$;
+
+-- Ask PostgREST to refresh its column metadata after an existing table is upgraded.
+notify pgrst, 'reload schema';
 
 -- Storage bucket for generated report PDFs. Public so the "Download PDF"
 -- link works directly -- run ids are unguessable UUIDs, so this is
