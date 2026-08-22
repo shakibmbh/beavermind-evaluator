@@ -34,6 +34,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!process.env.INNGEST_EVENT_KEY) {
+    return NextResponse.json(
+      { error: "Inngest is not configured. Set INNGEST_EVENT_KEY in the deployment environment." },
+      { status: 503 }
+    );
+  }
+
   try {
     const supabase = supabaseServer();
 
