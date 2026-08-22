@@ -1,4 +1,6 @@
-import PDFDocument from "pdfkit";
+// PDFKit's standalone build inlines standard-font metrics for bundled runtimes.
+// @ts-expect-error PDFKit does not publish declarations for this browserified entrypoint.
+import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 import type { ScoredReport, CallType } from "./rubrics/types";
 
 const INK = "#1C1E21";
