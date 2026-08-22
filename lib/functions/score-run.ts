@@ -29,13 +29,18 @@ export const scoreRun = inngest.createFunction(
       const runId = event?.data?.event?.data?.runId as string | undefined;
       if (!runId) return;
       const supabase = supabaseServer();
-      await supabase
+      const { data, error: updateError } = await supabase
         .from("runs")
         .update({
           status: "failed",
           error_message: errorMessage(error)
         })
-        .eq("id", runId);
+        .eq("id", runId)
+        .select("id")
+        .single();
+      if (updateError || !data) {
+        console.error("Failed to mark run as failed", updateError);
+      }
     }
   },
   { event: "run/created" },
@@ -50,8 +55,13 @@ export const scoreRun = inngest.createFunction(
     const rubric = getRubric(callType);
 
     await step.run("mark-running", async () => {
-      const { error } = await supabase.from("runs").update({ status: "running" }).eq("id", runId);
-      if (error) throw new Error(`Failed to mark run as running: ${error.message}`);
+      const { data, error } = await supabase
+        .from("runs")
+        .update({ status: "running" })
+        .eq("id", runId)
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`Failed to mark run as running: ${error?.message ?? "Run not found."}`);
     });
 
     const modelReport = await step.run("call-gemini", async () => {
@@ -82,15 +92,17 @@ export const scoreRun = inngest.createFunction(
     });
 
     await step.run("mark-done", async () => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("runs")
         .update({
           status: "done",
           result: scoredReport,
           pdf_url: pdfUrl
         })
-        .eq("id", runId);
-      if (error) throw new Error(`Failed to mark run as done: ${error.message}`);
+        .eq("id", runId)
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`Failed to mark run as done: ${error?.message ?? "Run not found."}`);
     });
 
     return { runId, totalScore: scoredReport.totalScore };
