@@ -9,6 +9,16 @@ import { uploadReportPdf } from "../storage";
 import type { CallType } from "../rubrics/types";
 import type { ScoredReport } from "../rubrics/types";
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "Scoring failed after retries.";
+}
+
 export const scoreRun = inngest.createFunction(
   {
     id: "score-run",
@@ -23,7 +33,7 @@ export const scoreRun = inngest.createFunction(
         .from("runs")
         .update({
           status: "failed",
-          error_message: error instanceof Error ? error.message : "Scoring failed after retries."
+          error_message: errorMessage(error)
         })
         .eq("id", runId);
     }

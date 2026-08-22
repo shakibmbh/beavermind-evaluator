@@ -81,12 +81,12 @@ function PendingState({ status }: { status: "queued" | "running" }) {
 }
 
 function FailedState({ message }: { message: string | null }) {
+  const displayMessage = typeof message === "string" ? message : "Scoring failed after retries.";
+
   return (
     <div className="py-24 text-center">
       <p className="font-display italic text-2xl text-flag mb-3">This run failed</p>
-      <p className="text-inkMuted text-sm max-w-md mx-auto mb-4">
-        {message ?? "An unknown error occurred while scoring this call."}
-      </p>
+      <p className="text-inkMuted text-sm max-w-md mx-auto mb-4">{displayMessage}</p>
       <a href="/" className="text-sm text-teal underline underline-offset-2">
         Start a new evaluation
       </a>
