@@ -37,33 +37,45 @@ const styles = StyleSheet.create({
   footer: { position: "absolute", bottom: 24, left: 40, right: 40, fontSize: 8, color: INK_MUTED, textAlign: "center" }
 });
 
+function pdfText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || value == null) {
+    return String(value ?? "");
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
 export function ReportDocument({ report, callType }: { report: ScoredReport; callType: CallType }) {
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
-        <Text style={styles.eyebrow}>{callType === "kickoff" ? "Kick-off call evaluation" : "Coaching call evaluation"}</Text>
+        <Text style={styles.eyebrow}>{pdfText(callType === "kickoff" ? "Kick-off call evaluation" : "Coaching call evaluation")}</Text>
         <Text style={styles.title}>Call Evaluation Report</Text>
 
         <View style={styles.gradeRow}>
           <View style={styles.gradeBox}>
-            <Text style={styles.gradeScore}>{report.totalScore}/100</Text>
-            <Text style={styles.gradeBand}>{report.gradeBand}</Text>
+            <Text style={styles.gradeScore}>{pdfText(report.totalScore)}/100</Text>
+            <Text style={styles.gradeBand}>{pdfText(report.gradeBand)}</Text>
           </View>
           <Text style={{ fontSize: 9, color: INK_MUTED, flex: 1 }}>
-            Scored {report.rawScore} of {report.rawMax} available points across {report.dimensions.filter((d) => !d.disabled).length} active dimensions.
+            Scored {pdfText(report.rawScore)} of {pdfText(report.rawMax)} available points across {pdfText(report.dimensions.filter((d) => !d.disabled).length)} active dimensions.
           </Text>
         </View>
 
         <Text style={styles.sectionTitle}>The one thing</Text>
         <View style={styles.oneThingBox}>
-          <Text style={styles.paragraph}>{report.oneThing.change}</Text>
+          <Text style={styles.paragraph}>{pdfText(report.oneThing.change)}</Text>
           <Text style={{ fontSize: 9, color: TEAL, marginTop: 2 }}>
-            Projected score with this change: {report.oneThing.projectedScore}/100
+            Projected score with this change: {pdfText(report.oneThing.projectedScore)}/100
           </Text>
         </View>
 
         <Text style={styles.sectionTitle}>The brief</Text>
-        <Text style={styles.paragraph}>{report.brief}</Text>
+        <Text style={styles.paragraph}>{pdfText(report.brief)}</Text>
 
         <Text style={styles.sectionTitle}>Red flags</Text>
         {report.redFlags.length === 0 ? (
@@ -71,14 +83,14 @@ export function ReportDocument({ report, callType }: { report: ScoredReport; cal
         ) : (
           report.redFlags.map((flag, i) => (
             <View key={i} style={styles.redFlagBox}>
-              <Text style={styles.redFlagText}>{flag}</Text>
+              <Text style={styles.redFlagText}>{pdfText(flag)}</Text>
             </View>
           ))
         )}
 
         {report.capsApplied.length > 0 && (
           <Text style={styles.capsNote}>
-            Automatic caps applied: {report.capsApplied.map((c) => c.label).join(" | ")}
+            Automatic caps applied: {pdfText(report.capsApplied.map((c) => c.label).join(" | "))}
           </Text>
         )}
 
@@ -86,24 +98,24 @@ export function ReportDocument({ report, callType }: { report: ScoredReport; cal
         {report.dimensions.map((dim) => (
           <View key={dim.id} style={styles.dimRow} wrap={false}>
             <View style={styles.dimHeader}>
-              <Text style={styles.dimName}>{dim.name}</Text>
+              <Text style={styles.dimName}>{pdfText(dim.name)}</Text>
               <Text style={styles.dimScore}>
-                {dim.disabled ? "N/A" : `${dim.score}/${dim.max}`}
+                {pdfText(dim.disabled ? "N/A" : `${dim.score}/${dim.max}`)}
               </Text>
             </View>
-            <Text style={styles.dimBand}>{dim.disabled ? dim.disabledReason ?? "Not applicable to this call" : dim.band}</Text>
+            <Text style={styles.dimBand}>{pdfText(dim.disabled ? dim.disabledReason ?? "Not applicable to this call" : dim.band)}</Text>
             {!dim.disabled && (
               <>
-                <Text style={styles.dimReasoning}>{dim.reasoning}</Text>
+                <Text style={styles.dimReasoning}>{pdfText(dim.reasoning)}</Text>
                 {dim.quotes.map((q, i) => (
-                  <Text key={i} style={styles.quote}>&ldquo;{q}&rdquo;</Text>
+                  <Text key={i} style={styles.quote}>&ldquo;{pdfText(q)}&rdquo;</Text>
                 ))}
                 {dim.quotes.length === 0 && (
                   <Text style={{ fontSize: 8.5, color: INK_MUTED, fontStyle: "italic" }}>
                     No verbatim transcript evidence for this claim.
                   </Text>
                 )}
-                <Text style={styles.quickFix}>Quick fix: {dim.quickFix}</Text>
+                <Text style={styles.quickFix}>Quick fix: {pdfText(dim.quickFix)}</Text>
               </>
             )}
           </View>
