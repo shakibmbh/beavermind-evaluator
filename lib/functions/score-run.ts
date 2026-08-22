@@ -50,7 +50,8 @@ export const scoreRun = inngest.createFunction(
     const rubric = getRubric(callType);
 
     await step.run("mark-running", async () => {
-      await supabase.from("runs").update({ status: "running" }).eq("id", runId);
+      const { error } = await supabase.from("runs").update({ status: "running" }).eq("id", runId);
+      if (error) throw new Error(`Failed to mark run as running: ${error.message}`);
     });
 
     const modelReport = await step.run("call-gemini", async () => {
@@ -81,7 +82,7 @@ export const scoreRun = inngest.createFunction(
     });
 
     await step.run("mark-done", async () => {
-      await supabase
+      const { error } = await supabase
         .from("runs")
         .update({
           status: "done",
@@ -89,6 +90,7 @@ export const scoreRun = inngest.createFunction(
           pdf_url: pdfUrl
         })
         .eq("id", runId);
+      if (error) throw new Error(`Failed to mark run as done: ${error.message}`);
     });
 
     return { runId, totalScore: scoredReport.totalScore };

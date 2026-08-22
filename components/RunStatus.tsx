@@ -30,10 +30,14 @@ export function RunStatus({ initialRun }: { initialRun: RunRow }) {
     // Safety net: poll every 4s in case Realtime doesn't fire (e.g. a
     // dropped websocket). Cheap at this scale and guarantees the page
     // never gets stuck showing a stale "running" state.
-    pollRef.current = setInterval(async () => {
-      const { data } = await supabase.from("runs").select("*").eq("id", run.id).single<RunRow>();
+    const refreshRun = async () => {
+      const { data, error } = await supabase.from("runs").select("*").eq("id", run.id).single<RunRow>();
       if (data) setRun(data);
-    }, 4000);
+      if (error) console.error("Failed to refresh run status", error);
+    };
+
+    void refreshRun();
+    pollRef.current = setInterval(() => void refreshRun(), 4000);
 
     return () => {
       supabase.removeChannel(channel);
