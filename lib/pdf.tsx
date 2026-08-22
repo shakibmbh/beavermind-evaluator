@@ -121,7 +121,9 @@ export function ReportDocument({ report, callType }: { report: ScoredReport; cal
           </View>
         ))}
 
-        <Text style={styles.footer} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages} -- generated ${new Date(report.scoredAt).toLocaleString()}`} fixed />
+        <Text style={styles.footer} fixed>
+          Generated {pdfText(new Date(report.scoredAt).toLocaleString())}
+        </Text>
       </Page>
     </Document>
   );
