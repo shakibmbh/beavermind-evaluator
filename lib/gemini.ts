@@ -1,4 +1,4 @@
-import type { RubricSpec, DimensionResult } from "./rubrics/types";
+import type { RubricSpec, DimensionResult, EvidenceQuote } from "./rubrics/types";
 import { buildGeminiSchema, modelScoredReportSchema } from "./schema";
 import type { ModelScoredReport } from "./rubrics/types";
 import { parseTranscript, formatNumberedTranscript, type TranscriptLine } from "./transcript";
@@ -67,16 +67,16 @@ export class GeminiScoringError extends Error {}
 function resolveQuotes(
   dimensions: { quoteLineIds: number[] }[],
   lines: TranscriptLine[]
-): { quotes: string[][]; unverifiedCount: number } {
+): { quotes: EvidenceQuote[][]; unverifiedCount: number } {
   const byId = new Map(lines.map((l) => [l.id, l]));
   let unverifiedCount = 0;
 
   const quotes = dimensions.map((d) => {
-    const resolved: string[] = [];
+    const resolved: EvidenceQuote[] = [];
     for (const id of d.quoteLineIds) {
       const line = byId.get(id);
       if (line) {
-        resolved.push(`[${line.speaker}]: ${line.text}`);
+        resolved.push({ lineId: id, text: `[${line.speaker}]: ${line.text}` });
       } else {
         unverifiedCount += 1;
       }

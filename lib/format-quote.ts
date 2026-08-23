@@ -1,4 +1,7 @@
+import type { EvidenceQuote } from "./rubrics/types";
+
 export interface QuoteTurn {
+  lineId: number;
   speakerLabel: string; // "Coach" | "Client" | original name as fallback
   text: string;
 }
@@ -16,13 +19,13 @@ const TURN_TAG = /\[([^\]]+)\]:\s*/g;
  * rather than dropping the evidence.
  */
 export function splitQuoteIntoTurns(
-  quote: string,
+  quote: EvidenceQuote,
   coachName: string,
   clientName: string | null
 ): QuoteTurn[] {
-  const matches = [...quote.matchAll(TURN_TAG)];
+  const matches = [...quote.text.matchAll(TURN_TAG)];
   if (matches.length === 0) {
-    return [{ speakerLabel: "Quote", text: quote.trim() }];
+    return [{ lineId: quote.lineId, speakerLabel: "Quote", text: quote.text.trim() }];
   }
 
   const turns: QuoteTurn[] = [];
@@ -30,16 +33,26 @@ export function splitQuoteIntoTurns(
     const match = matches[i];
     const name = match[1].trim();
     const start = match.index! + match[0].length;
-    const end = i + 1 < matches.length ? matches[i + 1].index! : quote.length;
-    const text = quote.slice(start, end).trim();
+    const end = i + 1 < matches.length ? matches[i + 1].index! : quote.text.length;
+    const text = quote.text.slice(start, end).trim();
     if (!text) continue;
 
     let speakerLabel = name;
     if (name === coachName) speakerLabel = "Coach";
     else if (clientName && name === clientName) speakerLabel = "Client";
 
-    turns.push({ speakerLabel, text });
+    turns.push({ lineId: quote.lineId, speakerLabel, text });
   }
 
-  return turns.length > 0 ? turns : [{ speakerLabel: "Quote", text: quote.trim() }];
+  return turns.length > 0 ? turns : [{ lineId: quote.lineId, speakerLabel: "Quote", text: quote.text.trim() }];
+}
+
+// Display-only truncation; the full text remains stored and verified.
+export function truncateQuoteText(text: string, maxChars = 160): { text: string; truncated: boolean } {
+  if (text.length <= maxChars) return { text, truncated: false };
+
+  const boundary = text.slice(0, maxChars).lastIndexOf(" ");
+  const cut = boundary > 0 ? boundary : maxChars;
+  const truncatedText = text.slice(0, cut).trim().replace(/[\s.,!?;:]+$/, "");
+  return { text: `${truncatedText}…`, truncated: true };
 }

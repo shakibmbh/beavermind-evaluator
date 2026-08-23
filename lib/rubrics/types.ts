@@ -56,7 +56,12 @@ export interface ModelDimensionResult {
 export interface DimensionResult extends Omit<ModelDimensionResult, "quoteLineIds"> {
   name: string;
   max: number;
-  quotes: string[];
+  quotes: EvidenceQuote[];
+}
+
+export interface EvidenceQuote {
+  lineId: number;
+  text: string;
 }
 
 export interface CapResult {

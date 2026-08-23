@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Quote as QuoteIcon, Wrench } from "lucide-react";
 import { ScoreBar } from "./ScoreBar";
-import { splitQuoteIntoTurns } from "@/lib/format-quote";
+import { splitQuoteIntoTurns, truncateQuoteText } from "@/lib/format-quote";
 import { dimensionStatus } from "@/lib/band-status";
 import type { DimensionResult } from "@/lib/rubrics/types";
 
@@ -17,6 +17,7 @@ export function DimensionCard({
   clientName: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [expandedQuotes, setExpandedQuotes] = useState<Set<number>>(new Set());
   const number = dimension.id.replace(/\D/g, "");
   const status = dimensionStatus(dimension.disabled ? "N/A" : dimension.band);
 
@@ -65,8 +66,31 @@ export function DimensionCard({
                     <div key={i} className="border-l-2 border-line pl-3 py-0.5 space-y-1">
                       {splitQuoteIntoTurns(q, coachName, clientName).map((turn, j) => (
                         <p key={j} className="font-mono text-xs leading-relaxed">
+                          <span className="text-inkMuted">L{turn.lineId} </span>
                           <span className="text-teal font-medium">{turn.speakerLabel}: </span>
-                          <span className="text-inkMuted">{turn.text}</span>
+                          {(() => {
+                            const truncated = truncateQuoteText(turn.text);
+                            const expanded = expandedQuotes.has(i);
+                            return (
+                              <>
+                                <span className="text-inkMuted">{expanded ? turn.text : truncated.text}</span>
+                                {truncated.truncated && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedQuotes((current) => {
+                                      const next = new Set(current);
+                                      if (expanded) next.delete(i);
+                                      else next.add(i);
+                                      return next;
+                                    })}
+                                    className="ml-1 text-xs text-teal underline-offset-2 hover:underline"
+                                  >
+                                    {expanded ? "Show less" : "Show full turn"}
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </p>
                       ))}
                     </div>
