@@ -2,7 +2,6 @@ import { inngest } from "../inngest";
 import { supabaseServer } from "../supabase/server";
 import { getRubric } from "../rubrics";
 import { scoreTranscriptWithGemini, GeminiScoringError } from "../gemini";
-import { verifyQuotes } from "../verify-quotes";
 import { applyCapsAndScore, applyComputedCapOverrides } from "../scoring";
 import { computeTalkTime } from "../talk-time";
 import { renderReportPdf } from "../pdf";
@@ -65,9 +64,10 @@ export const scoreRun = inngest.createFunction(
       if (error || !data) throw new Error(`Failed to mark run as running: ${error?.message ?? "Run not found."}`);
     });
 
-    const modelReport = await step.run("call-gemini", async () => {
+    const { modelReport, unverifiedQuoteCount } = await step.run("call-gemini", async () => {
       try {
-        return await scoreTranscriptWithGemini(rubric, transcript);
+        const { report, unverifiedQuoteCount } = await scoreTranscriptWithGemini(rubric, transcript);
+        return { modelReport: report, unverifiedQuoteCount };
       } catch (err) {
         // Re-throw as a plain Error so Inngest's retry + failure payload
         // carries a readable message instead of a swallowed class instance.
@@ -76,11 +76,10 @@ export const scoreRun = inngest.createFunction(
       }
     });
 
-    const scoredReport: ScoredReport = await step.run("verify-and-score", async () => {
-      const { report: verified, unverifiedQuoteCount } = verifyQuotes(modelReport, transcript);
+    const scoredReport: ScoredReport = await step.run("score", async () => {
       const talkTime = computeTalkTime(transcript);
-      const caps = applyComputedCapOverrides(rubric, verified.caps, talkTime);
-      const scored = applyCapsAndScore(rubric, { ...verified, caps });
+      const caps = applyComputedCapOverrides(rubric, modelReport.caps, talkTime);
+      const scored = applyCapsAndScore(rubric, { ...modelReport, caps });
       return {
         ...scored,
         callType,

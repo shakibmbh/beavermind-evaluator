@@ -46,16 +46,17 @@ export interface ModelDimensionResult {
   disabled: boolean;
   disabledReason: string | null;
   reasoning: string;
-  quotes: string[]; // verbatim transcript lines; empty array if not evidenced
+  quoteLineIds: number[]; // transcript line IDs used as evidence; empty array if not evidenced
   quickFix: string;
 }
 
 // ---- Same, with name/max merged in from the rubric spec. This is the
 // shape used everywhere downstream: scoring, quote verification, the PDF,
 // and the UI. ----
-export interface DimensionResult extends ModelDimensionResult {
+export interface DimensionResult extends Omit<ModelDimensionResult, "quoteLineIds"> {
   name: string;
   max: number;
+  quotes: string[];
 }
 
 export interface CapResult {
@@ -86,7 +87,7 @@ export interface ScoredReport extends ModelScoredReport {
   totalScore: number; // rescaled to /100
   gradeBand: string; // Elite / Strong / Inconsistent / At Risk / Fail
   capsApplied: AppliedCap[]; // triggered caps, each flagged with whether it actually changed the score
-  unverifiedQuoteCount: number; // quotes that failed the substring check
+  unverifiedQuoteCount: number; // line IDs the model cited that didn't exist in the transcript
   coachName: string; // whoever spoke first in the transcript, used to relabel quotes as "Coach"/"Client"
   clientName: string | null;
   scoredAt: string;

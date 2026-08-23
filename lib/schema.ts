@@ -22,11 +22,11 @@ export function buildGeminiSchema(rubric: RubricSpec) {
             disabled: { type: "BOOLEAN" },
             disabledReason: { type: "STRING" },
             reasoning: { type: "STRING" },
-            quotes: { type: "ARRAY", items: { type: "STRING" } },
+            quoteLineIds: { type: "ARRAY", items: { type: "INTEGER" } },
             quickFix: { type: "STRING" }
           },
-          required: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quotes", "quickFix"],
-          propertyOrdering: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quotes", "quickFix"]
+          required: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quoteLineIds", "quickFix"],
+          propertyOrdering: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quoteLineIds", "quickFix"]
         }
       },
       caps: {
@@ -70,7 +70,7 @@ export const dimensionResultSchema = z.object({
   disabled: z.boolean(),
   disabledReason: z.string().nullable().default(null),
   reasoning: z.string(),
-  quotes: z.array(z.string()),
+  quoteLineIds: z.array(z.number().int()),
   quickFix: z.string()
 });
 

@@ -1,11 +1,12 @@
-import type { RubricSpec } from "./rubrics/types";
+import type { RubricSpec, DimensionResult } from "./rubrics/types";
 import { buildGeminiSchema, modelScoredReportSchema } from "./schema";
 import type { ModelScoredReport } from "./rubrics/types";
+import { parseTranscript, formatNumberedTranscript, type TranscriptLine } from "./transcript";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-function buildPrompt(rubric: RubricSpec, transcript: string): string {
+function buildPrompt(rubric: RubricSpec, numberedTranscript: string, lineCount: number): string {
   const dimensionBlocks = rubric.dimensions
     .map((d) => {
       const optionalNote = d.optional ? `\n\nOPTIONAL DIMENSION: ${d.disableHint}` : "";
@@ -26,7 +27,7 @@ function buildPrompt(rubric: RubricSpec, transcript: string): string {
 
 # Hard rules (violating any of these makes the report unusable)
 
-1. EVIDENCE OR NOTHING. Every dimension's "quotes" array must contain only text that appears VERBATIM in the transcript below -- copy the exact wording of the speaking turn(s) you're relying on, character for character. If you cannot find a verbatim line supporting a behavior, the quotes array for that claim must be empty, and your reasoning must say the behavior was not evidenced in the transcript. Do not paraphrase into quotes. Do not invent or reconstruct plausible-sounding lines. Do not infer from the general mood or tone of the call -- score only what is explicitly said.
+1. EVIDENCE OR NOTHING, CITED BY LINE NUMBER. The transcript below has every speaking turn numbered ("L1", "L2", ...). Every dimension's "quoteLineIds" array must contain ONLY the line numbers (as integers, e.g. [12, 14]) of the turns that actually support your reasoning -- do not copy, retype, or paraphrase any transcript text yourself anywhere in your response. If no line in the transcript supports a claim, quoteLineIds must be an empty array, and your reasoning must say the behavior was not evidenced in the transcript. Do not infer from the general mood or tone of the call -- cite only lines that directly demonstrate the behavior. List line numbers in the order they'd help a reader follow the exchange.
 2. Never guess a coach's intent or a client's feelings beyond what they explicitly say or verbally confirm. "The client seemed happy" is not evidence; "client said 'I love this'" is.
 3. Score every one of the 12 dimensions listed below, using their exact "id" field (e.g. "d1", "d4"). Do not add, skip, merge, or rename dimensions.
 4. For each of the caps listed below, decide independently whether it is triggered by this specific transcript, and say why in "note" (a short sentence citing what you observed, or its absence). Do not apply the cap's numeric effect yourself -- just report whether it's triggered. The effect is applied deterministically afterward by code, not by you.
@@ -48,30 +49,55 @@ ${capBlocks}
 # Report-level fields to produce
 
 - "oneThing": the single highest-leverage change to this specific call -- the one thing that would move the total score the most if fixed -- with "change" (what the coach should have done) and "projectedScore" (your best estimate of the total /100 score if that one change were made, holding everything else constant).
-- "brief": 3-5 sentences on how the call went overall, written directly to the coach in a supportive-but-honest coaching voice, not a third-person summary.
+- "brief": 3-5 sentences on how the call went overall, written directly to the coach in a supportive-but-honest coaching voice, not a third-person summary. Do not quote transcript text here either -- describe in your own words.
 - "redFlags": a list of specific things in this call that put the client at risk of leaving the program, even if the overall score looks fine. Each entry should name the specific moment or pattern, not a generic worry. If there are genuinely none, return an empty array -- do not invent a flag to fill the field.
 
-# Transcript to score (${rubric.callType} call, ${transcript.length} characters, one line per speaking turn)
+# Transcript to score (${rubric.callType} call, ${lineCount} numbered lines, one line per speaking turn)
 
 <transcript>
-${transcript}
+${numberedTranscript}
 </transcript>
 
-Now score this transcript. Return ONLY the JSON object matching the provided schema -- no prose before or after it.`;
+Now score this transcript. Return ONLY the JSON object matching the provided schema -- no prose before or after it. Remember: cite evidence with quoteLineIds (integers), never by copying text.`;
 }
 
 export class GeminiScoringError extends Error {}
 
+function resolveQuotes(
+  dimensions: { quoteLineIds: number[] }[],
+  lines: TranscriptLine[]
+): { quotes: string[][]; unverifiedCount: number } {
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  let unverifiedCount = 0;
+
+  const quotes = dimensions.map((d) => {
+    const resolved: string[] = [];
+    for (const id of d.quoteLineIds) {
+      const line = byId.get(id);
+      if (line) {
+        resolved.push(`[${line.speaker}]: ${line.text}`);
+      } else {
+        unverifiedCount += 1;
+      }
+    }
+    return resolved;
+  });
+
+  return { quotes, unverifiedCount };
+}
+
 export async function scoreTranscriptWithGemini(
   rubric: RubricSpec,
   transcript: string
-): Promise<ModelScoredReport> {
+): Promise<{ report: ModelScoredReport; unverifiedQuoteCount: number }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new GeminiScoringError("Missing GEMINI_API_KEY environment variable.");
   }
 
-  const prompt = buildPrompt(rubric, transcript);
+  const lines = parseTranscript(transcript);
+  const numberedTranscript = formatNumberedTranscript(lines);
+  const prompt = buildPrompt(rubric, numberedTranscript, lines.length);
   const schema = buildGeminiSchema(rubric);
 
   const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
@@ -123,13 +149,17 @@ export async function scoreTranscriptWithGemini(
     );
   }
 
-  // Merge in name/max from the rubric spec rather than trusting the model
-  // to echo them back correctly.
+  const { quotes, unverifiedCount } = resolveQuotes(validated.data.dimensions, lines);
+
   const specById = new Map(rubric.dimensions.map((d) => [d.id, d]));
-  const dimensions = validated.data.dimensions.map((d) => {
+  const dimensions: DimensionResult[] = validated.data.dimensions.map((d, i) => {
     const spec = specById.get(d.id)!;
-    return { ...d, name: spec.name, max: spec.max };
+    const { quoteLineIds, ...rest } = d;
+    return { ...rest, name: spec.name, max: spec.max, quotes: quotes[i] };
   });
 
-  return { ...validated.data, dimensions };
+  return {
+    report: { ...validated.data, dimensions },
+    unverifiedQuoteCount: unverifiedCount
+  };
 }
