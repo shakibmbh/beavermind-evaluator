@@ -30,7 +30,9 @@ export const kickoffRubric: RubricSpec = {
       label: "Coach speaks more than 70% of the time without client engagement",
       effect: "Caps the total score at 80.",
       scope: "total",
-      totalCap: 80
+      totalCap: 80,
+      computedBy: "coachTalkShare",
+      talkShareThresholdPct: 70
     },
     {
       id: "unresolved_confusion",

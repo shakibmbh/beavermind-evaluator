@@ -14,7 +14,12 @@ function buildPrompt(rubric: RubricSpec, transcript: string): string {
     .join("\n\n");
 
   const capBlocks = rubric.caps
-    .map((c) => `- ${c.id}: "${c.label}" -> ${c.effect}`)
+    .map((c) => {
+      if (c.computedBy === "coachTalkShare") {
+        return `- ${c.id}: "${c.label}" -> ${c.effect} (DO NOT evaluate this one yourself -- talk-time share is computed directly from the transcript text in code, not estimated by you. Still include an entry for this id with triggered: false and note: "computed separately" so the response is well-formed; it will be overridden.)`;
+      }
+      return `- ${c.id}: "${c.label}" -> ${c.effect}`;
+    })
     .join("\n");
 
   return `You are scoring a single ${rubric.callType} call transcript against a fixed client rubric. You are not a lenient reviewer and you are not a harsh one -- you are a calibrated one. Follow the rubric exactly as written below. Do not use outside knowledge of coaching best practice that isn't in this rubric.

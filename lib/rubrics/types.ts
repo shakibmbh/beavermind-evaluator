@@ -20,6 +20,12 @@ export interface CapSpec {
   targetDimensionId?: string; // when scope === "dimension"
   clamp?: number; // e.g. cap D4 at 10, or force D10 to 0
   totalCap?: number; // e.g. max 70 total
+  /** When set, this cap's triggered/note is computed deterministically from
+   *  the transcript text (see lib/talk-time.ts) and overrides whatever the
+   *  model reported -- reserved for caps that are objective, countable
+   *  facts rather than judgment calls an LLM should be trusted to eyeball. */
+  computedBy?: "coachTalkShare";
+  talkShareThresholdPct?: number; // e.g. 70 or 75
 }
 
 export interface RubricSpec {

@@ -3,7 +3,7 @@ import { supabaseServer } from "../supabase/server";
 import { getRubric } from "../rubrics";
 import { scoreTranscriptWithGemini, GeminiScoringError } from "../gemini";
 import { verifyQuotes } from "../verify-quotes";
-import { applyCapsAndScore } from "../scoring";
+import { applyCapsAndScore, applyComputedCapOverrides } from "../scoring";
 import { renderReportPdf } from "../pdf";
 import { uploadReportPdf } from "../storage";
 import type { CallType } from "../rubrics/types";
@@ -77,7 +77,8 @@ export const scoreRun = inngest.createFunction(
 
     const scoredReport: ScoredReport = await step.run("verify-and-score", async () => {
       const { report: verified, unverifiedQuoteCount } = verifyQuotes(modelReport, transcript);
-      const scored = applyCapsAndScore(rubric, verified);
+      const caps = applyComputedCapOverrides(rubric, verified.caps, transcript);
+      const scored = applyCapsAndScore(rubric, { ...verified, caps });
       return {
         ...scored,
         callType,

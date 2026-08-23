@@ -39,7 +39,9 @@ export const coachingRubric: RubricSpec = {
       label: "Coach speaks more than 75% of the call (client passive / monologue)",
       effect: "Caps the total score at 75.",
       scope: "total",
-      totalCap: 75
+      totalCap: 75,
+      computedBy: "coachTalkShare",
+      talkShareThresholdPct: 75
     },
     {
       id: "no_owned_accountability",

@@ -1,4 +1,5 @@
-import type { RubricSpec, ModelScoredReport, ScoredReport } from "./rubrics/types";
+import { computeTalkTime } from "./talk-time";
+import type { RubricSpec, ModelScoredReport, ScoredReport, CapResult } from "./rubrics/types";
 
 function gradeBandFor(totalScore: number): string {
   if (totalScore >= 90) return "Elite";
@@ -6,6 +7,34 @@ function gradeBandFor(totalScore: number): string {
   if (totalScore >= 70) return "Inconsistent";
   if (totalScore >= 60) return "At Risk";
   return "Fail";
+}
+
+export function applyComputedCapOverrides(
+  rubric: RubricSpec,
+  caps: CapResult[],
+  transcript: string
+): CapResult[] {
+  const computedCapSpecs = rubric.caps.filter((c) => c.computedBy === "coachTalkShare");
+  if (computedCapSpecs.length === 0) return caps;
+
+  const talkTime = computeTalkTime(transcript);
+  const capById = new Map(caps.map((c) => [c.id, c]));
+
+  for (const spec of computedCapSpecs) {
+    const threshold = spec.talkShareThresholdPct ?? 100;
+    const triggered = talkTime.coachWordShare > threshold;
+    const note = `Computed directly from the transcript: ${talkTime.coachName} accounts for ${talkTime.coachWordShare.toFixed(1)}% of total words across the call (threshold: ${threshold}%).`;
+
+    const existing = capById.get(spec.id);
+    const overridden: CapResult = { id: spec.id, label: spec.label, triggered, note };
+    if (existing) {
+      Object.assign(existing, overridden);
+    } else {
+      caps.push(overridden);
+    }
+  }
+
+  return caps;
 }
 
 /**
