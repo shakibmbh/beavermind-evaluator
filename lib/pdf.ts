@@ -60,9 +60,14 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
       });
     }
 
-    if (report.capsApplied.length > 0) {
+    if (report.capsApplied.some((cap) => cap.binding)) {
       document.moveDown(0.5).fontSize(8.5).fillColor(INK_MUTED).text(
-        `Automatic caps applied: ${pdfText(report.capsApplied.map((cap) => cap.label).join(" | "))}`
+        `Automatic caps applied: ${pdfText(report.capsApplied.filter((cap) => cap.binding).map((cap) => cap.label).join(" | "))}`
+      );
+    }
+    if (report.capsApplied.some((cap) => !cap.binding)) {
+      document.font("Helvetica-Oblique").fontSize(8.5).fillColor(INK_MUTED).text(
+        `Also triggered, no additional effect on score: ${pdfText(report.capsApplied.filter((cap) => !cap.binding).map((cap) => cap.label).join(" | "))}`
       );
     }
 

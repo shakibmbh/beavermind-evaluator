@@ -1,5 +1,5 @@
 import { computeTalkTime } from "./talk-time";
-import type { RubricSpec, ModelScoredReport, ScoredReport, CapResult } from "./rubrics/types";
+import type { RubricSpec, ModelScoredReport, ScoredReport, CapResult, AppliedCap } from "./rubrics/types";
 
 function gradeBandFor(totalScore: number): string {
   if (totalScore >= 90) return "Elite";
@@ -59,15 +59,19 @@ export function applyCapsAndScore(
   const dimensionById = new Map(modelReport.dimensions.map((d) => [d.id, d]));
   const capById = new Map(rubric.caps.map((c) => [c.id, c]));
 
-  // 1. Apply dimension-level caps (clamps + non-recoverable forced zeros).
+  // 1. Apply dimension-level caps (clamps + non-recoverable forced zeros),
+  // tracking whether each triggered cap actually reduced the score.
+  const dimensionCapBinding = new Map<string, boolean>();
   const dimensions = modelReport.dimensions.map((dim) => {
-    let score = dim.disabled ? 0 : dim.score;
+    const preClampScore = dim.disabled ? 0 : dim.score;
+    let score = preClampScore;
 
     for (const capResult of modelReport.caps) {
       if (!capResult.triggered) continue;
       const spec = capById.get(capResult.id);
       if (!spec || spec.scope !== "dimension" || spec.targetDimensionId !== dim.id) continue;
       if (typeof spec.clamp === "number") {
+        dimensionCapBinding.set(capResult.id, score > spec.clamp);
         score = Math.min(score, spec.clamp);
       }
     }
@@ -86,18 +90,24 @@ export function applyCapsAndScore(
     return result?.disabled ? sum : sum + dimSpec.max;
   }, 0);
 
-  // 3. Rescale to /100.
-  let totalScore = rawMax > 0 ? Math.round((rawScore / rawMax) * 100) : 0;
+  const uncappedTotal = rawMax > 0 ? Math.round((rawScore / rawMax) * 100) : 0;
+  let totalScore = uncappedTotal;
 
-  // 4. Apply total-level caps to the rescaled score.
-  const capsApplied = modelReport.caps.filter((c) => c.triggered);
-  for (const capResult of capsApplied) {
+  const totalCapBinding = new Map<string, boolean>();
+  const triggeredCaps = modelReport.caps.filter((c) => c.triggered);
+  for (const capResult of triggeredCaps) {
     const spec = capById.get(capResult.id);
     if (spec?.scope === "total" && typeof spec.totalCap === "number") {
+      totalCapBinding.set(capResult.id, uncappedTotal > spec.totalCap);
       totalScore = Math.min(totalScore, spec.totalCap);
     }
   }
   totalScore = Math.max(0, Math.min(100, totalScore));
+
+  const capsApplied: AppliedCap[] = triggeredCaps.map((c) => ({
+    ...c,
+    binding: dimensionCapBinding.get(c.id) ?? totalCapBinding.get(c.id) ?? false
+  }));
 
   return {
     dimensions,

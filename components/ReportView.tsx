@@ -45,19 +45,31 @@ export function ReportView({
         )}
       </header>
 
-      {report.capsApplied.length > 0 && (
+      {report.capsApplied.some((c) => c.binding) && (
         <section className="bg-amber-light border border-amber/30 rounded-lg px-4 py-3">
           <p className="text-xs uppercase tracking-wide text-amber font-medium mb-1.5">
             Automatic caps applied
           </p>
           <ul className="space-y-1">
-            {report.capsApplied.map((cap) => (
+            {report.capsApplied
+              .filter((c) => c.binding)
+              .map((cap) => (
               <li key={cap.id} className="text-sm text-ink">
                 <span className="font-medium">{cap.label}.</span> {cap.note}
               </li>
-            ))}
+              ))}
           </ul>
         </section>
+      )}
+
+      {report.capsApplied.some((c) => !c.binding) && (
+        <p className="text-xs text-inkMuted">
+          Also triggered, but didn&apos;t change the score (already lower for other reasons):{" "}
+          {report.capsApplied
+            .filter((c) => !c.binding)
+            .map((c) => c.label)
+            .join("; ")}
+        </p>
       )}
 
       <section>

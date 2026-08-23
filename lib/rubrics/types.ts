@@ -65,6 +65,10 @@ export interface CapResult {
   note: string;
 }
 
+export interface AppliedCap extends CapResult {
+  binding: boolean;
+}
+
 // ---- What the model returns overall (before deterministic post-processing) ----
 export interface ModelScoredReport {
   dimensions: DimensionResult[];
@@ -81,7 +85,7 @@ export interface ScoredReport extends ModelScoredReport {
   rawMax: number; // sum of active (non-disabled) dimension max points
   totalScore: number; // rescaled to /100
   gradeBand: string; // Elite / Strong / Inconsistent / At Risk / Fail
-  capsApplied: CapResult[]; // subset of caps where triggered === true
+  capsApplied: AppliedCap[]; // triggered caps, each flagged with whether it actually changed the score
   unverifiedQuoteCount: number; // quotes that failed the substring check
   scoredAt: string;
 }
