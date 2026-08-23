@@ -48,6 +48,7 @@ ${capBlocks}
 
 # Report-level fields to produce
 
+- "coachSpeakerName": the exact speaker name (matching one of the bracketed names in the transcript, e.g. "Dana Whitlock") of whichever participant is acting as the coach, determined from what they say -- self-introductions, referring to "the program"/"your assessment", asking about the other person's goals -- not from who speaks first.
 - "oneThing": the single highest-leverage change to this specific call -- the one thing that would move the total score the most if fixed -- with "change" (what the coach should have done) and "projectedScore" (your best estimate of the total /100 score if that one change were made, holding everything else constant).
 - "brief": 3-5 sentences on how the call went overall, written directly to the coach in a supportive-but-honest coaching voice, not a third-person summary. Do not quote transcript text here either -- describe in your own words.
 - "redFlags": a list of specific things in this call that put the client at risk of leaving the program, even if the overall score looks fine. Each entry should name the specific moment or pattern, not a generic worry. If there are genuinely none, return an empty array -- do not invent a flag to fill the field.

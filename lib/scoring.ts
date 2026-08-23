@@ -114,6 +114,7 @@ export function applyCapsAndScore(
     oneThing: modelReport.oneThing,
     brief: modelReport.brief,
     redFlags: modelReport.redFlags,
+    coachSpeakerName: modelReport.coachSpeakerName,
     rawScore,
     rawMax,
     totalScore,

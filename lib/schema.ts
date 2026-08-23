@@ -52,10 +52,11 @@ export function buildGeminiSchema(rubric: RubricSpec) {
         required: ["change", "projectedScore"]
       },
       brief: { type: "STRING" },
-      redFlags: { type: "ARRAY", items: { type: "STRING" } }
+      redFlags: { type: "ARRAY", items: { type: "STRING" } },
+      coachSpeakerName: { type: "STRING" }
     },
-    required: ["dimensions", "caps", "oneThing", "brief", "redFlags"],
-    propertyOrdering: ["dimensions", "caps", "oneThing", "brief", "redFlags"]
+    required: ["dimensions", "caps", "oneThing", "brief", "redFlags", "coachSpeakerName"],
+    propertyOrdering: ["dimensions", "caps", "oneThing", "brief", "redFlags", "coachSpeakerName"]
   } as const;
 }
 
@@ -89,5 +90,6 @@ export const modelScoredReportSchema = z.object({
     projectedScore: z.number()
   }),
   brief: z.string(),
-  redFlags: z.array(z.string())
+  redFlags: z.array(z.string()),
+  coachSpeakerName: z.string()
 });

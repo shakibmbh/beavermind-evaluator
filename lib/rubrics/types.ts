@@ -77,6 +77,7 @@ export interface ModelScoredReport {
   oneThing: { change: string; projectedScore: number };
   brief: string;
   redFlags: string[];
+  coachSpeakerName: string;
 }
 
 // ---- Final report after code applies caps + rescaling + quote verification ----

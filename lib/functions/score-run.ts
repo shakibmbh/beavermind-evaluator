@@ -77,7 +77,7 @@ export const scoreRun = inngest.createFunction(
     });
 
     const scoredReport: ScoredReport = await step.run("score", async () => {
-      const talkTime = computeTalkTime(transcript);
+      const talkTime = computeTalkTime(transcript, modelReport.coachSpeakerName);
       const caps = applyComputedCapOverrides(rubric, modelReport.caps, talkTime);
       const scored = applyCapsAndScore(rubric, { ...modelReport, caps });
       return {

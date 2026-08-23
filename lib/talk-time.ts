@@ -7,7 +7,7 @@ export interface TalkTimeResult {
   totalTurns: number;
 }
 
-export function computeTalkTime(transcript: string): TalkTimeResult {
+export function computeTalkTime(transcript: string, modelCoachName?: string | null): TalkTimeResult {
   const lines = parseTranscript(transcript);
   const wordCounts = new Map<string, number>();
   const speakerOrder: string[] = [];
@@ -21,7 +21,10 @@ export function computeTalkTime(transcript: string): TalkTimeResult {
     wordCounts.set(line.speaker, wordCounts.get(line.speaker)! + words);
   }
 
-  const coachName = speakerOrder[0] ?? "Unknown";
+  const speakerNames = new Set(wordCounts.keys());
+  // The model's identification is a content judgment about who they are, not arithmetic about word share;
+  // trust it once it is validated against real speaker names, matching the trust boundary used elsewhere.
+  const coachName = modelCoachName && speakerNames.has(modelCoachName) ? modelCoachName : speakerOrder[0] ?? "Unknown";
   const clientName = speakerOrder.find((s) => s !== coachName) ?? null;
   const totalWords = [...wordCounts.values()].reduce((a, b) => a + b, 0);
   const coachWords = wordCounts.get(coachName) ?? 0;
