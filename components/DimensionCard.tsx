@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 import { ScoreBar } from "./ScoreBar";
+import { splitQuoteIntoTurns } from "@/lib/format-quote";
 import type { DimensionResult } from "@/lib/rubrics/types";
 
-export function DimensionCard({ dimension }: { dimension: DimensionResult }) {
+export function DimensionCard({
+  dimension,
+  coachName,
+  clientName
+}: {
+  dimension: DimensionResult;
+  coachName: string;
+  clientName: string | null;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,14 +47,16 @@ export function DimensionCard({ dimension }: { dimension: DimensionResult }) {
               <p className="text-sm text-ink leading-relaxed">{dimension.reasoning}</p>
 
               {dimension.quotes.length > 0 ? (
-                <div className="space-y-1.5">
+                <div className="space-y-2.5">
                   {dimension.quotes.map((q, i) => (
-                    <p
-                      key={i}
-                      className="font-mono text-xs text-inkMuted border-l-2 border-line pl-3 py-0.5 leading-relaxed"
-                    >
-                      &ldquo;{q}&rdquo;
-                    </p>
+                    <div key={i} className="border-l-2 border-line pl-3 py-0.5 space-y-1">
+                      {splitQuoteIntoTurns(q, coachName, clientName).map((turn, j) => (
+                        <p key={j} className="font-mono text-xs leading-relaxed">
+                          <span className="text-teal font-medium">{turn.speakerLabel}: </span>
+                          <span className="text-inkMuted">{turn.text}</span>
+                        </p>
+                      ))}
+                    </div>
                   ))}
                 </div>
               ) : (

@@ -1,4 +1,4 @@
-import { computeTalkTime } from "./talk-time";
+import type { TalkTimeResult } from "./talk-time";
 import type { RubricSpec, ModelScoredReport, ScoredReport, CapResult, AppliedCap } from "./rubrics/types";
 
 function gradeBandFor(totalScore: number): string {
@@ -12,12 +12,11 @@ function gradeBandFor(totalScore: number): string {
 export function applyComputedCapOverrides(
   rubric: RubricSpec,
   caps: CapResult[],
-  transcript: string
+  talkTime: TalkTimeResult
 ): CapResult[] {
   const computedCapSpecs = rubric.caps.filter((c) => c.computedBy === "coachTalkShare");
   if (computedCapSpecs.length === 0) return caps;
 
-  const talkTime = computeTalkTime(transcript);
   const capById = new Map(caps.map((c) => [c.id, c]));
 
   for (const spec of computedCapSpecs) {
@@ -55,7 +54,7 @@ export function applyComputedCapOverrides(
 export function applyCapsAndScore(
   rubric: RubricSpec,
   modelReport: ModelScoredReport
-): Omit<ScoredReport, "callType" | "unverifiedQuoteCount" | "scoredAt"> {
+): Omit<ScoredReport, "callType" | "unverifiedQuoteCount" | "coachName" | "clientName" | "scoredAt"> {
   const dimensionById = new Map(modelReport.dimensions.map((d) => [d.id, d]));
   const capById = new Map(rubric.caps.map((c) => [c.id, c]));
 

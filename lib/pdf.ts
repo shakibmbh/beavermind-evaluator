@@ -1,6 +1,7 @@
 // PDFKit's standalone build inlines standard-font metrics for bundled runtimes.
 // @ts-expect-error PDFKit does not publish declarations for this browserified entrypoint.
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
+import { splitQuoteIntoTurns } from "./format-quote";
 import type { ScoredReport, CallType } from "./rubrics/types";
 
 const INK = "#1C1E21";
@@ -83,7 +84,10 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
         document.fontSize(9.5).fillColor(INK).text(pdfText(dimension.reasoning));
         const quotes = Array.isArray(dimension.quotes) ? dimension.quotes : [];
         quotes.forEach((quote) => {
-          document.font("Courier").fontSize(8.5).fillColor(INK_MUTED).text(`"${pdfText(quote)}"`);
+          splitQuoteIntoTurns(quote, report.coachName, report.clientName).forEach((turn) => {
+            document.font("Courier-Bold").fontSize(8.5).fillColor(TEAL).text(`${turn.speakerLabel}: `, { continued: true });
+            document.font("Courier").fillColor(INK_MUTED).text(turn.text);
+          });
         });
         if (quotes.length === 0) {
           document.font("Helvetica-Oblique").fontSize(8.5).text("No verbatim transcript evidence for this claim.");

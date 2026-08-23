@@ -87,5 +87,7 @@ export interface ScoredReport extends ModelScoredReport {
   gradeBand: string; // Elite / Strong / Inconsistent / At Risk / Fail
   capsApplied: AppliedCap[]; // triggered caps, each flagged with whether it actually changed the score
   unverifiedQuoteCount: number; // quotes that failed the substring check
+  coachName: string; // whoever spoke first in the transcript, used to relabel quotes as "Coach"/"Client"
+  clientName: string | null;
   scoredAt: string;
 }

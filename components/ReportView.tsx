@@ -107,7 +107,12 @@ export function ReportView({
         <h2 className="font-display italic text-xl text-teal mb-3">Dimensions</h2>
         <div className="space-y-2">
           {report.dimensions.map((dim) => (
-            <DimensionCard key={dim.id} dimension={dim} />
+            <DimensionCard
+              key={dim.id}
+              dimension={dim}
+              coachName={report.coachName}
+              clientName={report.clientName}
+            />
           ))}
         </div>
       </section>
