@@ -306,7 +306,7 @@ function drawDimension(
     const reasoning = pdfText(dimension.reasoning);
     const reasoningHeight = measureParagraph(doc, reasoning, { width: PAGE_WIDTH - MARGIN * 2, size: 9.5, lineGap: 4 });
     ensureSpace(doc, reasoningHeight + 28, addHeader, pageNumberRef);
-    doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(reasoning, { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
+    doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(reasoning, MARGIN, doc.y, { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
     addSectionGap(doc, 10);
 
     const quotes = Array.isArray(dimension.quotes) ? dimension.quotes : [];
@@ -351,7 +351,7 @@ function drawDimension(
     doc.fillColor(INK).font("Helvetica").fontSize(9.1).text(quickFixText, MARGIN + 22, boxY + 9, { width: quickFixTextWidth, lineGap: 2 });
     doc.y = boxY + quickFixHeight + 12;
   } else {
-    doc.fillColor(INK_MUTED).font("Helvetica").fontSize(9).text(pdfText(dimension.disabledReason ?? "Not applicable to this call."), { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
+    doc.fillColor(INK_MUTED).font("Helvetica").fontSize(9).text(pdfText(dimension.disabledReason ?? "Not applicable to this call."), MARGIN, doc.y, { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
     doc.y += 12;
   }
 
