@@ -49,7 +49,7 @@ export function ReportView({
         <p className="text-sm text-ink leading-relaxed">{report.brief}</p>
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
         <div className={report.capsApplied.length === 0 ? "md:col-span-2" : undefined}>
           <RedFlagsCard flags={report.redFlags} />
         </div>
