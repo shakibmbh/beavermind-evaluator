@@ -28,8 +28,8 @@ function buildPrompt(rubric: RubricSpec, numberedTranscript: string, lineCount: 
 
 # Hard rules (violating any of these makes the report unusable)
 
-1. EVIDENCE OR NOTHING, CITED BY LINE NUMBER. The transcript below has every speaking turn numbered ("L1", "L2", ...). Every dimension's "quoteLineIds" array must contain ONLY the line numbers (as integers, e.g. [12, 14]) of the turns that actually support your reasoning -- do not copy, retype, or paraphrase any transcript text yourself anywhere in your response. If no line in the transcript supports a claim, quoteLineIds must be an empty array, and your reasoning must say the behavior was not evidenced in the transcript. Do not infer from the general mood or tone of the call -- cite only lines that directly demonstrate the behavior. List line numbers in the order they'd help a reader follow the exchange.
-2. Never write line-number citations, bracketed references like '(L5, L8)', or literal transcript quotes inside 'reasoning', 'quickFix', 'brief', 'disabledReason', or any other prose field. Line numbers belong exclusively in the 'quoteLineIds' array. Prose fields should read as clean, standalone sentences a reader could understand with no knowledge of line numbering at all.
+1. EVIDENCE OR NOTHING, CITED BY LINE NUMBER. The transcript below has every speaking turn numbered ("L1", "L2", ...). Every dimension's "quoteLineIds" array must contain ONLY the line numbers (as integers, e.g. [12, 14]) of the turns that actually support your reasoning. Also return "keyEvidenceLineIds": the single most important conversational moment for this dimension, as a concise contiguous block of usually 3-8 transcript lines. Include enough surrounding dialogue to establish what happened and its coaching impact, preferably including both speakers. Do not copy, retype, or paraphrase any transcript text yourself anywhere in your response. If no line in the transcript supports a claim, both arrays must be empty, and your reasoning must say the behavior was not evidenced in the transcript. Do not infer from the general mood or tone of the call -- cite only lines that directly demonstrate the behavior. List line numbers in conversational order.
+2. Never write line-number citations, bracketed references like '(L5, L8)', or literal transcript quotes inside 'reasoning', 'quickFix', 'brief', 'disabledReason', or any other prose field. Line numbers belong exclusively in the 'quoteLineIds' and 'keyEvidenceLineIds' arrays. Prose fields should read as clean, standalone sentences a reader could understand with no knowledge of line numbering at all.
 3. Never guess a coach's intent or a client's feelings beyond what they explicitly say or verbally confirm. "The client seemed happy" is not evidence; "client said 'I love this'" is.
 4. Score every one of the 12 dimensions listed below, using their exact "id" field (e.g. "d1", "d4"). Do not add, skip, merge, or rename dimensions.
 5. For each of the caps listed below, decide independently whether it is triggered by this specific transcript, and say why in "note" (a short sentence citing what you observed, or its absence). Do not apply the cap's numeric effect yourself -- just report whether it's triggered. The effect is applied deterministically afterward by code, not by you.
@@ -65,21 +65,21 @@ ${capBlocks}
 ${numberedTranscript}
 </transcript>
 
-Now score this transcript. Return ONLY the JSON object matching the provided schema -- no prose before or after it. Remember: cite evidence with quoteLineIds (integers), never by copying text.`;
+Now score this transcript. Return ONLY the JSON object matching the provided schema -- no prose before or after it. Remember: use quoteLineIds for all supporting evidence and keyEvidenceLineIds for one coherent key moment; use integers only and never copy transcript text.`;
 }
 
 export class GeminiScoringError extends Error {}
 
-function resolveQuotes(
-  dimensions: { quoteLineIds: number[] }[],
+function resolveEvidence(
+  dimensions: { quoteLineIds: number[]; keyEvidenceLineIds: number[] }[],
   lines: TranscriptLine[]
-): { quotes: EvidenceQuote[][]; unverifiedCount: number } {
+): { quotes: EvidenceQuote[][]; keyEvidence: EvidenceQuote[][]; unverifiedCount: number } {
   const byId = new Map(lines.map((l) => [l.id, l]));
   let unverifiedCount = 0;
 
-  const quotes = dimensions.map((d) => {
+  const resolve = (lineIds: number[]) => {
     const resolved: EvidenceQuote[] = [];
-    for (const id of d.quoteLineIds) {
+    for (const id of lineIds) {
       const line = byId.get(id);
       if (line) {
         resolved.push({ lineId: id, text: `[${line.speaker}]: ${line.text}` });
@@ -88,9 +88,11 @@ function resolveQuotes(
       }
     }
     return resolved;
-  });
+  };
 
-  return { quotes, unverifiedCount };
+  const quotes = dimensions.map((d) => resolve(d.quoteLineIds));
+  const keyEvidence = dimensions.map((d) => resolve(d.keyEvidenceLineIds));
+  return { quotes, keyEvidence, unverifiedCount };
 }
 
 export async function scoreTranscriptWithGemini(
@@ -165,13 +167,13 @@ export async function scoreTranscriptWithGemini(
     );
   }
 
-  const { quotes, unverifiedCount } = resolveQuotes(validated.data.dimensions, lines);
+  const { quotes, keyEvidence, unverifiedCount } = resolveEvidence(validated.data.dimensions, lines);
 
   const specById = new Map(rubric.dimensions.map((d) => [d.id, d]));
   const dimensions: DimensionResult[] = validated.data.dimensions.map((d, i) => {
     const spec = specById.get(d.id)!;
-    const { quoteLineIds, ...rest } = d;
-    return { ...rest, name: spec.name, max: spec.max, quotes: quotes[i] };
+    const { quoteLineIds, keyEvidenceLineIds, ...rest } = d;
+    return { ...rest, name: spec.name, max: spec.max, quotes: quotes[i], keyEvidence: keyEvidence[i] };
   });
 
   return {

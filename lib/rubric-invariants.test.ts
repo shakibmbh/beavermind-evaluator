@@ -20,7 +20,9 @@ function validReport(rubric: RubricSpec): ModelScoredReport {
         disabledReason: null,
         reasoning: "Supported by the transcript.",
         quoteLineIds: [],
+        keyEvidenceLineIds: [],
         quotes: [],
+        keyEvidence: [],
         quickFix: "Keep the coach centered on the client’s next commitment."
       };
     }),

@@ -56,16 +56,18 @@ export interface ModelDimensionResult {
   disabledReason: string | null;
   reasoning: string;
   quoteLineIds: number[]; // transcript line IDs used as evidence; empty array if not evidenced
+  keyEvidenceLineIds: number[]; // concise contiguous transcript moment for report presentation
   quickFix: string;
 }
 
 // ---- Same, with name/max merged in from the rubric spec. This is the
 // shape used everywhere downstream: scoring, quote verification, the PDF,
 // and the UI. ----
-export interface DimensionResult extends Omit<ModelDimensionResult, "quoteLineIds"> {
+export interface DimensionResult extends Omit<ModelDimensionResult, "quoteLineIds" | "keyEvidenceLineIds"> {
   name: string;
   max: number;
   quotes: EvidenceQuote[];
+  keyEvidence: EvidenceQuote[];
 }
 
 export interface EvidenceQuote {

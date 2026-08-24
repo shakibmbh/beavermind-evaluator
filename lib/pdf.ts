@@ -309,7 +309,9 @@ function drawDimension(
     doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(reasoning, MARGIN, doc.y, { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
     addSectionGap(doc, 10);
 
-    const quotes = Array.isArray(dimension.quotes) ? dimension.quotes : [];
+    const quotes = Array.isArray(dimension.keyEvidence) && dimension.keyEvidence.length > 0
+      ? dimension.keyEvidence
+      : Array.isArray(dimension.quotes) ? dimension.quotes : [];
     if (quotes.length > 0) {
       ensureSpace(doc, 30, addHeader, pageNumberRef);
       drawLabel(doc, "Evidence", TEAL, 8.5);

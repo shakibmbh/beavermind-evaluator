@@ -23,10 +23,11 @@ export function buildGeminiSchema(rubric: RubricSpec) {
             disabledReason: { type: "STRING" },
             reasoning: { type: "STRING" },
             quoteLineIds: { type: "ARRAY", items: { type: "INTEGER" } },
+            keyEvidenceLineIds: { type: "ARRAY", items: { type: "INTEGER" } },
             quickFix: { type: "STRING" }
           },
-          required: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quoteLineIds", "quickFix"],
-          propertyOrdering: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quoteLineIds", "quickFix"]
+          required: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quoteLineIds", "keyEvidenceLineIds", "quickFix"],
+          propertyOrdering: ["id", "score", "band", "disabled", "disabledReason", "reasoning", "quoteLineIds", "keyEvidenceLineIds", "quickFix"]
         }
       },
       caps: {
@@ -72,6 +73,7 @@ export const dimensionResultSchema = z.object({
   disabledReason: z.string().nullable().default(null),
   reasoning: z.string(),
   quoteLineIds: z.array(z.number().int()),
+  keyEvidenceLineIds: z.array(z.number().int()),
   quickFix: z.string()
 });
 
