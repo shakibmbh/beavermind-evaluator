@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { RunRow } from "@/lib/supabase/types";
+import type { RunResponse } from "@/lib/run-response";
 import { ReportView } from "@/components/ReportView";
 import type { ScoredReport } from "@/lib/rubrics/types";
 
 const TERMINAL_STATUSES = ["done", "failed"];
 
-export function RunStatus({ initialRun }: { initialRun: RunRow }) {
-  const [run, setRun] = useState<RunRow>(initialRun);
+export function RunStatus({ initialRun }: { initialRun: RunResponse }) {
+  const [run, setRun] = useState<RunResponse>(initialRun);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function RunStatus({ initialRun }: { initialRun: RunRow }) {
       try {
         const response = await fetch(`/api/runs/${encodeURIComponent(run.id)}`, { cache: "no-store" });
         if (!response.ok) throw new Error(`status ${response.status}`);
-        setRun((await response.json()) as RunRow);
+        setRun((await response.json()) as RunResponse);
       } catch (error) {
         console.error("Failed to refresh run status", error);
       }

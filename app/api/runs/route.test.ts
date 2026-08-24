@@ -8,6 +8,9 @@ const { send, supabaseServer } = vi.hoisted(() => ({
 
 vi.mock("@/lib/inngest", () => ({ inngest: { send } }));
 vi.mock("@/lib/supabase/server", () => ({ supabaseServer }));
+vi.mock("@/lib/transcript", () => ({
+  parseTranscript: (transcript: string) => transcript.match(/^\[[^\]]+\]:.*$/gm) ?? []
+}));
 
 function makeSupabase() {
   const insertSingle = vi.fn();
@@ -26,11 +29,11 @@ function makeSupabase() {
   return { client: { from }, from, insertSingle, updateSingle, updateQuery };
 }
 
-function request() {
+function request(body = { callType: "kickoff", transcript: "[Coach]: Hello\n[Client]: Hi" }) {
   return new Request("http://localhost/api/runs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callType: "kickoff", transcript: "[Coach]: Hello\n[Client]: Hi" })
+    body: JSON.stringify(body)
   });
 }
 
@@ -52,6 +55,21 @@ describe("POST /api/runs", () => {
     expect(await response.json()).toEqual({ id: "run-1" });
     expect(send).toHaveBeenCalledOnce();
     expect(supabase.updateQuery.eq).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["empty", ""],
+    ["whitespace-only", "  \n \t"],
+    ["without parseable speaker turns", "This is not a speaker turn."]
+  ])("rejects a %s transcript", async (_description, transcript) => {
+    const supabase = makeSupabase();
+    supabaseServer.mockReturnValue(supabase.client);
+
+    const response = await POST(request({ callType: "kickoff", transcript }));
+
+    expect(response.status).toBe(400);
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("marks the inserted run failed when dispatch fails", async () => {

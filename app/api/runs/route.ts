@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { inngest } from "@/lib/inngest";
 import type { CallType } from "@/lib/rubrics/types";
+import { parseTranscript } from "@/lib/transcript";
 
 const VALID_CALL_TYPES: CallType[] = ["kickoff", "coaching"];
 const MAX_TRANSCRIPT_CHARS = 200_000; // generous headroom above the largest sample (~65KB)
@@ -58,6 +59,10 @@ export async function POST(req: Request) {
 
   if (!transcript || typeof transcript !== "string" || transcript.trim().length === 0) {
     return NextResponse.json({ error: "transcript is required and cannot be empty." }, { status: 400 });
+  }
+
+  if (parseTranscript(transcript).length === 0) {
+    return NextResponse.json({ error: "transcript must contain at least one valid speaker turn." }, { status: 400 });
   }
 
   if (transcript.length > MAX_TRANSCRIPT_CHARS) {
