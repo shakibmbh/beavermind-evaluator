@@ -304,11 +304,18 @@ function drawDimension(doc: PDFKit.PDFDocument, dimension: ScoredReport["dimensi
           const lineText = `L${turn.lineId}  ${turn.speakerLabel}`;
           const quoteText = truncateQuoteText(turn.text, 180).text;
           const lineWidth = PAGE_WIDTH - MARGIN * 2;
+          const labelWidth = 90;
+          const quoteX = MARGIN + 100;
+          const quoteWidth = lineWidth - 108;
+          const rowY = doc.y;
 
-          doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(7.5).text(lineText, MARGIN + 10, doc.y + 1, { width: 90 });
-          doc.moveTo(MARGIN, doc.y + 10).lineTo(MARGIN + 4, doc.y + 10).strokeColor(TEAL).lineWidth(1).stroke();
-          doc.fillColor(INK).font("Helvetica").fontSize(8.8).text(quoteText, MARGIN + 100, doc.y, { width: lineWidth - 108, lineGap: 2 });
-          doc.y += 18;
+          const labelHeight = doc.font("Helvetica-Bold").fontSize(7.5).heightOfString(lineText, { width: labelWidth });
+          const quoteHeight = doc.font("Helvetica").fontSize(8.8).heightOfString(quoteText, { width: quoteWidth, lineGap: 2 });
+          const rowHeight = Math.max(labelHeight, quoteHeight);
+
+          doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(7.5).text(lineText, MARGIN + 10, rowY, { width: labelWidth });
+          doc.fillColor(INK).font("Helvetica").fontSize(8.8).text(quoteText, quoteX, rowY, { width: quoteWidth, lineGap: 2 });
+          doc.y = rowY + rowHeight + 10;
         });
       });
       addSectionGap(doc, 8);
