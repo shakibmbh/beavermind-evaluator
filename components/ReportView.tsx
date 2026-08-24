@@ -49,11 +49,15 @@ export function ReportView({
         <p className="text-sm text-ink leading-relaxed">{report.brief}</p>
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-        <div className={report.capsApplied.length === 0 ? "md:col-span-2" : undefined}>
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+        <div className={report.capsApplied.length === 0 ? "w-full" : "w-full md:w-2/3"}>
           <RedFlagsCard flags={report.redFlags} />
         </div>
-        <AutomaticCapsCard caps={report.capsApplied} />
+        {report.capsApplied.length > 0 && (
+          <div className="w-full md:w-1/3">
+            <AutomaticCapsCard caps={report.capsApplied} />
+          </div>
+        )}
       </div>
 
       <section>
