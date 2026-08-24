@@ -9,17 +9,19 @@ function validReport(rubric: RubricSpec): ModelScoredReport {
   return {
     dimensions: rubric.dimensions.map((spec) => {
       const rule = spec.scoreRules[0];
+      const score = (rule.scores?.[0] ?? rule.min ?? 0) as number;
       return {
         id: spec.id,
         name: spec.name,
         max: spec.max,
-        score: rule.scores?.[0] ?? rule.min,
+        score,
         band: rule.band,
         disabled: false,
         disabledReason: null,
         reasoning: "Supported by the transcript.",
         quoteLineIds: [],
-        quotes: []
+        quotes: [],
+        quickFix: "Keep the coach centered on the client’s next commitment."
       };
     }),
     caps: rubric.caps.map((spec) => ({ id: spec.id, label: spec.label, triggered: false, note: "Not triggered." })),
