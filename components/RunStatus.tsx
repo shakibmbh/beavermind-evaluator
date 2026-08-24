@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { RunRow } from "@/lib/supabase/types";
 import { ReportView } from "@/components/ReportView";
 import type { ScoredReport } from "@/lib/rubrics/types";
@@ -15,32 +14,22 @@ export function RunStatus({ initialRun }: { initialRun: RunRow }) {
   useEffect(() => {
     if (TERMINAL_STATUSES.includes(run.status)) return;
 
-    const supabase = supabaseBrowser();
-
-    // Primary: live updates via Realtime.
-    const channel = supabase
-      .channel(`run-${run.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "runs", filter: `id=eq.${run.id}` },
-        (payload) => setRun(payload.new as RunRow)
-      )
-      .subscribe();
-
-    // Safety net: poll every 4s in case Realtime doesn't fire (e.g. a
-    // dropped websocket). Cheap at this scale and guarantees the page
-    // never gets stuck showing a stale "running" state.
+    // Poll through the server route so the anon browser client never gets
+    // direct read access to the runs table.
     const refreshRun = async () => {
-      const { data, error } = await supabase.from("runs").select("*").eq("id", run.id).single<RunRow>();
-      if (data) setRun(data);
-      if (error) console.error("Failed to refresh run status", error);
+      try {
+        const response = await fetch(`/api/runs/${encodeURIComponent(run.id)}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`status ${response.status}`);
+        setRun((await response.json()) as RunRow);
+      } catch (error) {
+        console.error("Failed to refresh run status", error);
+      }
     };
 
     void refreshRun();
     pollRef.current = setInterval(() => void refreshRun(), 4000);
 
     return () => {
-      supabase.removeChannel(channel);
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [run.id, run.status]);

@@ -11,7 +11,7 @@ async function ensureReportsBucket() {
     throw new Error(`Failed to check report PDF bucket: ${lookupError.message}`);
   }
 
-  const { error: createError } = await supabase.storage.createBucket(BUCKET, { public: true });
+  const { error: createError } = await supabase.storage.createBucket(BUCKET, { public: false });
   if (createError && !createError.message.toLowerCase().includes("already exists")) {
     throw new Error(`Failed to create report PDF bucket: ${createError.message}`);
   }
@@ -32,6 +32,11 @@ export async function uploadReportPdf(runId: string, pdf: Buffer): Promise<strin
     throw new Error(`Failed to upload report PDF: ${error.message}`);
   }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const { data, error: signedUrlError } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, 60 * 60 * 24 * 365);
+  if (signedUrlError || !data) {
+    throw new Error(`Failed to create report PDF URL: ${signedUrlError?.message ?? "No URL returned."}`);
+  }
+  return data.signedUrl;
 }

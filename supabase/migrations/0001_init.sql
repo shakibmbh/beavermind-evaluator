@@ -55,48 +55,20 @@ create trigger runs_set_updated_at
   for each row
   execute function set_updated_at();
 
--- Row Level Security: the browser (anon key) may only ever read a run by
--- its id. All writes go through the server (service-role key) in the API
--- route and the Inngest function, so no INSERT/UPDATE policy is granted
--- to anon at all.
+-- Row Level Security: all runs are read and written through server-side
+-- code using the service-role key. No browser role receives table access.
 alter table runs enable row level security;
 
 drop policy if exists "anon can read runs" on runs;
-create policy "anon can read runs"
-  on runs for select
-  to anon
-  using (true);
-
--- Enable realtime so the /run/[id] page can subscribe to status changes
--- instead of polling. Check the catalog first because PostgreSQL raises an
--- error if the table is already present.
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'runs'
-  ) then
-    alter publication supabase_realtime add table runs;
-  end if;
-end;
-$$;
+revoke all on table runs from anon;
 
 -- Ask PostgREST to refresh its column metadata after an existing table is upgraded.
 notify pgrst, 'reload schema';
 
--- Storage bucket for generated report PDFs. Public so the "Download PDF"
--- link works directly -- run ids are unguessable UUIDs, so this is
--- equivalent in practice to an unlisted share link, same as the /run/[id]
--- page itself.
+-- Storage bucket for generated report PDFs. Private so reports cannot be
+-- listed or downloaded through a public storage policy.
 insert into storage.buckets (id, name, public)
-values ('reports', 'reports', true)
+values ('reports', 'reports', false)
 on conflict (id) do nothing;
 
 drop policy if exists "public can read report pdfs" on storage.objects;
-create policy "public can read report pdfs"
-  on storage.objects for select
-  to public
-  using (bucket_id = 'reports');

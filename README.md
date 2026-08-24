@@ -6,8 +6,7 @@ client's rubric with a durable, shareable report and a downloadable PDF.
 ## Stack
 
 - **Next.js 15** (App Router) on **Vercel** -- UI + API routes
-- **Supabase** (Postgres + Storage + Realtime) -- the `runs` table, the PDF
-  bucket, and live status updates on the run page
+- **Supabase** (Postgres + Storage) -- the `runs` table and private PDF bucket
 - **Inngest** -- durable background execution. Each run is processed as a
   checkpointed step function, decoupled from the HTTP request that created
   it, with automatic per-step retries
@@ -20,25 +19,24 @@ anywhere in this stack.
 
 ## Architecture, in one paragraph
 
-The browser never talks to the LLM directly. Submitting a transcript
+The browser never talks to Supabase or the LLM directly. Submitting a transcript
 inserts a row into Supabase and fires an Inngest event, then returns
 immediately with a run id -- this is what lets someone close the tab and
 come back later. Inngest calls back into `/api/inngest` one step at a time
 (call Gemini -> verify quotes against the transcript -> apply the rubric's
 automatic caps deterministically -> render and upload the PDF -> mark the
 run done), retrying any individual step that fails rather than the whole
-pipeline. The run page subscribes to the row via Supabase Realtime (with a
-polling fallback) so it always reflects the true current state: queued,
-running, done, or failed with a reason.
+pipeline. The run page polls an ID-scoped server route so it always reflects
+the true current state: queued, running, done, or failed with a reason,
+without exposing direct table reads to anonymous browser clients.
 
 ## Setup
 
 ### 1. Supabase
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier).
-2. Open the SQL editor and run `supabase/migrations/0001_init.sql`. This
-   creates the `runs` table, RLS policies, the Realtime publication, and
-   the `reports` storage bucket in one shot.
+2. Open the SQL editor and run the migrations in order. They create the
+  `runs` table with RLS enabled and a private `reports` storage bucket.
 3. From **Project Settings -> API**, grab your project URL, `anon` key, and
    `service_role` key.
 
@@ -52,8 +50,7 @@ No billing account required for the free tier.
 ```bash
 npm install
 cp .env.example .env.local
-# fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL,
-# NEXT_PUBLIC_SUPABASE_ANON_KEY, GEMINI_API_KEY
+# fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and GEMINI_API_KEY
 ```
 
 ### 4. Inngest, locally
@@ -87,7 +84,7 @@ app/
   api/inngest/route.ts      Inngest's serving endpoint (the step function lives here)
 components/
   SubmitForm.tsx            Call-type toggle + transcript textarea
-  RunStatus.tsx             Realtime subscription, queued/running/failed/done states
+  RunStatus.tsx             Server polling, queued/running/failed/done states
   ReportView.tsx            Grade, one thing, brief, red flags, dimensions, PDF link
   DimensionCard.tsx         One openable dimension with evidence
   ScoreBar.tsx               Band-colored score visualization
