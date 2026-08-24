@@ -8,7 +8,7 @@ export function AutomaticCapsCard({ caps }: { caps: AppliedCap[] }) {
   const nonBinding = caps.filter((cap) => !cap.binding);
 
   return (
-    <div className="flex flex-col border border-line rounded-xl bg-white/40 px-5 py-4">
+    <div className="h-full flex flex-col border border-line rounded-xl bg-white/40 px-5 py-4">
       <div className="flex items-center gap-2 mb-3">
         <ShieldCheck size={17} className="text-inkMuted" aria-hidden="true" />
         <span className="text-xs font-medium tracking-widest uppercase text-inkMuted">Automatic caps</span>
