@@ -126,11 +126,14 @@ function drawParagraph(doc: PDFKit.PDFDocument, text: string, options: { width?:
   doc.fillColor(color).font("Helvetica").fontSize(size).text(text, { width, lineGap, indent });
 }
 
-function maybeAddPageBefore(doc: PDFKit.PDFDocument, requiredHeight: number, addHeader: () => void) {
+function ensureSpace(doc: PDFKit.PDFDocument, requiredHeight: number, addHeader: () => void, pageNumberRef: { current: number }) {
   const remaining = doc.page.height - doc.y - 36;
   if (remaining < requiredHeight) {
+    drawPageFooter(doc, pageNumberRef.current);
     doc.addPage();
+    pageNumberRef.current += 1;
     addHeader();
+    doc.y = 80;
   }
 }
 
@@ -274,7 +277,15 @@ function drawCaps(doc: PDFKit.PDFDocument, caps: AppliedCap[], x: number, y: num
   return y + totalHeight + 12;
 }
 
-function drawDimension(doc: PDFKit.PDFDocument, dimension: ScoredReport["dimensions"][number], index: number, report: ScoredReport, pageNumber: number) {
+function drawDimension(
+  doc: PDFKit.PDFDocument,
+  dimension: ScoredReport["dimensions"][number],
+  index: number,
+  report: ScoredReport,
+  addHeader: () => void,
+  pageNumberRef: { current: number }
+) {
+  ensureSpace(doc, 70, addHeader, pageNumberRef);
   const labelY = doc.y;
   const headerWidth = PAGE_WIDTH - MARGIN * 2;
   const status = dimension.disabled ? "N/A" : dimension.band;
@@ -291,11 +302,14 @@ function drawDimension(doc: PDFKit.PDFDocument, dimension: ScoredReport["dimensi
 
   if (!dimension.disabled) {
     const reasoning = pdfText(dimension.reasoning);
+    const reasoningHeight = measureParagraph(doc, reasoning, { width: PAGE_WIDTH - MARGIN * 2, size: 9.5, lineGap: 4 });
+    ensureSpace(doc, reasoningHeight + 28, addHeader, pageNumberRef);
     doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(reasoning, { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
     addSectionGap(doc, 10);
 
     const quotes = Array.isArray(dimension.quotes) ? dimension.quotes : [];
     if (quotes.length > 0) {
+      ensureSpace(doc, 30, addHeader, pageNumberRef);
       drawLabel(doc, "Evidence", TEAL, 8.5);
       addSectionGap(doc, 6);
       quotes.forEach((quote) => {
@@ -307,11 +321,11 @@ function drawDimension(doc: PDFKit.PDFDocument, dimension: ScoredReport["dimensi
           const labelWidth = 90;
           const quoteX = MARGIN + 100;
           const quoteWidth = lineWidth - 108;
-          const rowY = doc.y;
-
           const labelHeight = doc.font("Helvetica-Bold").fontSize(7.5).heightOfString(lineText, { width: labelWidth });
           const quoteHeight = doc.font("Helvetica").fontSize(8.8).heightOfString(quoteText, { width: quoteWidth, lineGap: 2 });
           const rowHeight = Math.max(labelHeight, quoteHeight);
+          ensureSpace(doc, rowHeight + 10, addHeader, pageNumberRef);
+          const rowY = doc.y;
 
           doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(7.5).text(lineText, MARGIN + 10, rowY, { width: labelWidth });
           doc.fillColor(INK).font("Helvetica").fontSize(8.8).text(quoteText, quoteX, rowY, { width: quoteWidth, lineGap: 2 });
@@ -321,15 +335,18 @@ function drawDimension(doc: PDFKit.PDFDocument, dimension: ScoredReport["dimensi
       addSectionGap(doc, 8);
     }
 
+    const quickFixText = pdfText(dimension.quickFix);
+    const quickFixTextWidth = PAGE_WIDTH - MARGIN * 2 - 32;
+    const quickFixTextHeight = measureParagraph(doc, quickFixText, { width: quickFixTextWidth, size: 9.1, lineGap: 2 });
+    const quickFixHeight = Math.max(30, quickFixTextHeight + 18);
+    ensureSpace(doc, quickFixHeight + 28, addHeader, pageNumberRef);
     drawLabel(doc, "Quick fix", TEAL, 8.5);
     addSectionGap(doc, 4);
-    const quickFixText = pdfText(dimension.quickFix);
     const quickFixY = doc.y;
     const boxY = quickFixY;
-    const quickFixHeight = 30 + (quickFixText.length > 120 ? 12 : 0);
     doc.roundedRect(MARGIN, boxY, PAGE_WIDTH - MARGIN * 2, quickFixHeight, 5).fillColor(GREY_SOFT).fill();
-    doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(9).text("→", MARGIN + 10, boxY + 9);
-    doc.fillColor(INK).font("Helvetica").fontSize(9.1).text(quickFixText, MARGIN + 22, boxY + 9, { width: PAGE_WIDTH - MARGIN * 2 - 32, lineGap: 2 });
+    doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(9).text(">", MARGIN + 10, boxY + 9);
+    doc.fillColor(INK).font("Helvetica").fontSize(9.1).text(quickFixText, MARGIN + 22, boxY + 9, { width: quickFixTextWidth, lineGap: 2 });
     doc.y = boxY + quickFixHeight + 12;
   } else {
     doc.fillColor(INK_MUTED).font("Helvetica").fontSize(9).text(pdfText(dimension.disabledReason ?? "Not applicable to this call."), { width: PAGE_WIDTH - MARGIN * 2, lineGap: 4 });
@@ -344,12 +361,13 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
     const document = new PDFDocument({ size: "A4", margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     const chunks: Buffer[] = [];
     let pageNumber = 1;
+    const pageNumberRef = { current: pageNumber };
 
     document.on("data", (chunk: Buffer) => chunks.push(chunk));
     document.on("end", () => resolve(Buffer.concat(chunks)));
     document.on("error", reject);
 
-    const addHeader = () => drawPageHeader(document, report, callType, pageNumber);
+    const addHeader = () => drawPageHeader(document, report, callType, pageNumberRef.current);
     addHeader();
     document.y = 78;
 
@@ -369,7 +387,8 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
     document.y = Math.max(leftY, rightY) + 12;
     drawPageFooter(document, pageNumber);
 
-    pageNumber += 1;
+    pageNumberRef.current += 1;
+    pageNumber = pageNumberRef.current;
     document.addPage();
     drawPageHeader(document, report, callType, pageNumber);
     document.y = 80;
@@ -378,15 +397,11 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
     addSectionGap(document, 6);
 
     report.dimensions.forEach((dimension, index) => {
-      maybeAddPageBefore(document, 140, () => {
-        document.addPage();
-        pageNumber += 1;
-        drawPageHeader(document, report, callType, pageNumber);
-      });
-      drawDimension(document, dimension, index + 1, report, pageNumber);
+      drawDimension(document, dimension, index + 1, report, addHeader, pageNumberRef);
+      pageNumber = pageNumberRef.current;
     });
 
-    drawPageFooter(document, pageNumber);
+    drawPageFooter(document, pageNumberRef.current);
     document.end();
   });
 }
