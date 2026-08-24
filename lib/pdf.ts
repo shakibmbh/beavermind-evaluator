@@ -194,10 +194,15 @@ function drawOneThing(doc: PDFKit.PDFDocument, report: ScoredReport, x: number, 
 }
 
 function drawBrief(doc: PDFKit.PDFDocument, brief: string, x: number, y: number, width: number): number {
-  const textHeight = measureParagraph(doc, brief, { width, size: 9.5, lineGap: 4 });
-  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("THE BRIEF", x, y);
-  doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(brief, x, y + 20, { width, lineGap: 4 });
-  return y + 20 + textHeight + 12;
+  const padding = 14;
+  const contentWidth = width - padding * 2;
+  const textHeight = measureParagraph(doc, brief, { width: contentWidth, size: 9.5, lineGap: 4 });
+  const boxHeight = textHeight + 46;
+
+  doc.roundedRect(x, y, width, boxHeight, 6).fillColor(GREY_SOFT).fill();
+  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("EXECUTIVE BRIEF", x + padding, y + padding, { width: contentWidth });
+  doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(brief, x + padding, y + padding + 18, { width: contentWidth, lineGap: 4 });
+  return y + boxHeight + 14;
 }
 
 function drawRedFlags(doc: PDFKit.PDFDocument, redFlags: string[], x: number, y: number, width: number): number {
@@ -369,20 +374,22 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
     addHeader();
     document.y = 78;
 
-    const leftColWidth = 260;
-    const rightColX = 330;
-    const rightColWidth = 210;
-    let leftY = 118;
-    let rightY = 68;
+    const contentWidth = PAGE_WIDTH - MARGIN * 2;
+    const columnGap = 18;
+    const leftColWidth = (contentWidth - columnGap) * 0.58;
+    const rightColX = MARGIN + leftColWidth + columnGap;
+    const rightColWidth = contentWidth - leftColWidth - columnGap;
+    const firstRowY = 92;
 
-    rightY = drawOverallScore(document, report, rightColX - 8, rightY, rightColWidth);
-    rightY = drawBrief(document, report.brief, rightColX, rightY + 16, rightColWidth);
-    rightY = drawCaps(document, report.capsApplied, rightColX, rightY + 16, rightColWidth);
+    const oneThingEndY = drawOneThing(document, report, MARGIN, firstRowY, leftColWidth);
+    const overallScoreEndY = drawOverallScore(document, report, rightColX, firstRowY, rightColWidth);
+    const briefY = Math.max(oneThingEndY, overallScoreEndY) + 4;
+    const briefEndY = drawBrief(document, report.brief, MARGIN, briefY, contentWidth);
+    const bottomRowY = briefEndY + 2;
+    const redFlagsEndY = drawRedFlags(document, report.redFlags, MARGIN, bottomRowY, leftColWidth);
+    const capsEndY = drawCaps(document, report.capsApplied, rightColX, bottomRowY, rightColWidth);
 
-    leftY = drawOneThing(document, report, MARGIN, leftY, leftColWidth);
-    leftY = drawRedFlags(document, report.redFlags, MARGIN, leftY + 16, leftColWidth);
-
-    document.y = Math.max(leftY, rightY) + 12;
+    document.y = Math.max(redFlagsEndY, capsEndY) + 12;
     drawPageFooter(document, pageNumber);
 
     pageNumberRef.current += 1;
