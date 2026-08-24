@@ -1,11 +1,20 @@
 export type CallType = "kickoff" | "coaching";
 export type ScoringMode = "band" | "discrete";
 
+export interface ScoreRule {
+  band: string;
+  scores?: number[];
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
 export interface DimensionSpec {
   id: string; // "d1".."d12"
   name: string;
   max: number;
   scoringMode: ScoringMode;
+  scoreRules: ScoreRule[];
   optional?: boolean; // e.g. coaching D4 (movement coaching), D2 (diagnostics)
   disableHint?: string; // condition text shown to the model for when to disable
   /** Full band/bucket criteria, signals, and calibration notes, given to the model verbatim. */

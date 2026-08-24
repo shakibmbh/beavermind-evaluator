@@ -56,6 +56,7 @@ export const kickoffRubric: RubricSpec = {
       name: "Pre-Call Preparation",
       max: 10,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", min: 9, max: 10 }, { band: "Strong", min: 6, max: 8 }, { band: "Mid", min: 4, max: 5 }, { band: "Weak", min: 1, max: 3 }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the coach demonstrate they reviewed the sales notes BEFORE the call -- referencing the client's name, goals, injuries, and context without asking?
 
 Score on conduct, not on disclosure. Credit preparation when the coach demonstrably uses information that could only have come from the sales notes, even if the coach never explicitly says "I read your notes." The verbal acknowledgement is a positive signal, not a requirement.
@@ -74,6 +75,7 @@ Calibration (do not deviate): Do NOT default to Mid just because the coach didn'
       name: "Rapport & Tone",
       max: 10,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does a genuine human connection form? Does the coach adapt their energy to the client? Does the client open up?
 
 Buckets:
@@ -87,6 +89,7 @@ Buckets:
       name: "Agenda Framing",
       max: 5,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", min: 4.5, max: 5, step: 0.5 }, { band: "Mid", min: 2.5, max: 3.5, step: 0.5 }, { band: "Weak", min: 1, max: 2 }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the coach take control of the call structure upfront and communicate what will happen?
 
 Numbered enumeration is NOT required. A sequenced delivery covering at least 3 distinct phases ("first... then... and finally...", or comma/and-connected items), paired with explicit time framing and at least implicit client buy-in, qualifies as structured.
@@ -104,6 +107,7 @@ Calibration (do not deviate): a coach who says "we've got 30 minutes -- connect,
       name: "Goal Alignment & Deep Why",
       max: 15,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [15] }, { band: "Strong", scores: [10] }, { band: "Mid", scores: [5] }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the coach go beyond functional goals to uncover the emotional/identity driver? Is a North Star statement built?
 
 Buckets:
@@ -119,6 +123,7 @@ Auto-cap: no North Star statement constructed -> max 10 (applied regardless of h
       name: "Program Explanation (3 Phases)",
       max: 10,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", min: 9, max: 10 }, { band: "Strong", min: 6, max: 8 }, { band: "Mid", min: 3, max: 5 }, { band: "Weak", min: 1, max: 2 }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the client leave understanding the 3-phase program structure and why it exists?
 
 Canonical 3-phase naming: (1) Movement Retraining -- restore movement quality, address asymmetries. (2) Movement Remodeling -- load and rebuild new patterns into strength. (3) Movement Integrating -- integrate full-capacity movement into life/sport. Accept ANY phrasing conveying the same three-stage progression in order (e.g. Reset/Build/Freedom, or "rebuild the foundation -> load the pattern -> free movement"). Do not penalize the canonical naming either.
@@ -137,6 +142,7 @@ Calibration (do not deviate): "Movement Retraining -> Remodeling -> Integrating"
       name: "Journey & Expectation Setting",
       max: 10,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the coach prepare the client emotionally for the difficulty of the journey, not just the logistics?
 
 Buckets:
@@ -150,6 +156,7 @@ Buckets:
       name: "Support System Clarity",
       max: 5,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Scope note: this dimension scores ONLY what is said in the call, not whether follow-up actually landed afterwards. Set disabled: false always for this dimension.
 
 What to look for: does the coach communicate, in-call, exactly how the client will be supported between sessions -- primary channel, response expectations, community access, accountability style?
@@ -164,6 +171,7 @@ Buckets:
       name: "Coaching Intelligence Questions",
       max: 10,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the coach gather information beyond logistics -- behavioral patterns, psychology, personalization?
 
 Buckets:
@@ -177,6 +185,7 @@ Buckets:
       name: "Next Steps & Diagnostics",
       max: 10,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the client leave knowing exactly what to do and when?
 
 Buckets:
@@ -190,6 +199,7 @@ Buckets:
       name: "Booking Next Call",
       max: 5,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", min: 4.5, max: 5, step: 0.5 }, { band: "Mid", min: 2.5, max: 3.5, step: 0.5 }, { band: "Weak", min: 1, max: 2 }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: is the next call booked LIVE, verbally, before the call ends?
 
 Booking is verbal, not technical -- whether the calendar invite is technically clicked on-screen during the call versus immediately after is an artifact of the recording and is NOT a deduction.
@@ -207,6 +217,7 @@ Calibration (do not deviate): if date and time are confirmed verbally and any sc
       name: "Close, Recap & Confidence",
       max: 5,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `What to look for: does the call end with energy, structure, and an emotional anchor -- not just logistics?
 
 Buckets:
@@ -221,6 +232,7 @@ Note: even elite calls commonly score 3-4/5 here -- a missing structured recap i
       name: "Post-Call Execution",
       max: 5,
       scoringMode: "band",
+      scoreRules: [{ band: "Elite", min: 4.5, max: 5, step: 0.5 }, { band: "Strong", min: 3.5, max: 4, step: 0.5 }, { band: "Mid", min: 2, max: 3 }, { band: "Weak", scores: [1] }, { band: "Fail", scores: [0] }],
       promptSpec: `Scope note: this dimension scores ONLY what is committed to, in the call. Verification of actual delivery afterward is out of scope. Set disabled: false always.
 
 What to look for: does the coach commit, in-call, to specific post-call deliverables with concrete deadlines?

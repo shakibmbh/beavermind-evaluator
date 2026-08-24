@@ -73,6 +73,7 @@ export const coachingRubric: RubricSpec = {
       name: "Check-In & Connection",
       max: 10,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Surface", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: CONNECTION. What to look for: does the coach open with genuine curiosity and gauge the client's real state before anything else? Is a call intention set explicitly?
 
 Buckets:
@@ -88,6 +89,7 @@ Calibration (do not deviate): the check-in is how the coach gauges what kind of 
       name: "Diagnostics Review",
       max: 10,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Surface", scores: [3] }, { band: "Fail", scores: [0] }],
       optional: true,
       disableHint: "Set disabled: true with band N/A only if this call had no milestone diagnostics review at all (non-milestone call, no video submitted this session). Score normally otherwise.",
       promptSpec: `Pillar: VALUE. Only fully applicable at milestone weeks (8, 16, 24). What to look for: does the coach demonstrate expertise through specific, personalized feedback on 1-2 movements (not more), tied directly to client goals?
@@ -105,6 +107,7 @@ Scoring note: if diagnostics are not applicable this cycle (non-milestone call, 
       name: "Program Focus + Vision",
       max: 15,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [15] }, { band: "Strong", scores: [10] }, { band: "Mid", scores: [5] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: EMOTION -- belief + long-term buy-in. What to look for: does the coach connect the current block to the client's 12-month vision and identity, or only talk about this week?
 
 Buckets:
@@ -120,6 +123,7 @@ Auto-cap: no long-term vision connection anywhere in the call -> max 10.`
       name: "Movement Coaching Quality",
       max: 15,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [15] }, { band: "Strong", scores: [10] }, { band: "Mid", scores: [5] }, { band: "Fail", scores: [0] }],
       optional: true,
       disableHint: `Disable ONLY when ALL FOUR of these are absent: (1) client performed any live movement during the call, (2) coach gave setup/breathing/control cues in response to a movement, (3) there was a video review of a recorded movement attempt with real-time feedback, (4) coach gave real-time form correction while the client moved. If even one is present, score normally. If disabling, set disabled: true, band "N/A", score 0, with a short disabled_reason like "no movement coaching on this call -- session was entirely strategy/accountability".`,
       promptSpec: `Pillar: SUPPORT -- real coaching, not commentary. What to look for: does something actually improve or click during this call? Is the coach coaching, or just narrating?
@@ -135,6 +139,7 @@ Buckets:
       name: "Adjustments & Strategy",
       max: 10,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [10] }, { band: "Strong", scores: [7] }, { band: "Surface", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: GOALS -- adaptability + confidence. What to look for: when adjustments are made (training or lifestyle), are they framed as intelligent, strategic progress -- or a step backward?
 
 Buckets:
@@ -150,6 +155,7 @@ Scoring note: if no adjustments were needed this cycle at all, score 7/10 by def
       name: "Action Steps & Accountability",
       max: 15,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [15] }, { band: "Strong", scores: [10] }, { band: "Mid", scores: [5] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: JOURNEY -- clarity + ownership. What to look for: do BOTH the coach and client leave with specific, time-bound, measurable commitments, with verbal ownership (not just instructions given)?
 
 Buckets:
@@ -165,6 +171,7 @@ Auto-cap: no concrete accountability commitment the client owns before close -- 
       name: "Accountability Anchor",
       max: 5,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: JOURNEY -- single-point focus. What to look for: is there a clear, non-negotiable accountability commitment the client owns for the week, gated to a coach action (program progression, feedback)?
 
 Best as ONE named anchor task, but a specific, verifiable, progression-gated deliverable the client confirms also qualifies -- even when several items are requested -- provided it's clear what the client owns and what it unlocks. Time-bound is satisfied by a hard date OR a session-relative deadline ("before our next call", "over the next two weeks before I progress you").
@@ -181,6 +188,7 @@ Calibration (do not deviate): "I want you to send me some videos over the next t
       name: "Struggle Handling",
       max: 5,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: CONNECTION + CONFIDENCE. What to look for: when the client reveals difficulty (physical, emotional, motivational, or frustration with the program), does the coach actually coach through it, or just acknowledge it?
 
 Buckets:
@@ -197,6 +205,7 @@ Auto-cap: client struggle present but ignored, minimized, avoided, or coach beco
       name: "Close Quality",
       max: 5,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: CONFIDENCE. What to look for: does the call end with emotional energy, specific celebration, and directional clarity -- or just logistics?
 
 Buckets:
@@ -211,6 +220,7 @@ Note: a written post-call breakdown sent separately (e.g. via Slack) is a post-c
       name: "Next Call Booking",
       max: 5,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: CONTINUITY. Non-negotiable. What to look for: is the next call booked LIVE before the call ends?
 
 Buckets:
@@ -224,6 +234,7 @@ Auto-cap: next call NOT booked live during the call -> forces this dimension to 
       name: "Continuity & Follow-Up Clarity",
       max: 5,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: CONTINUITY. What to look for: does the client know EXACTLY what happens after this call ends -- what the coach will do, when, and how?
 
 Scope note: scored ONLY on the in-call statement of the coach's own follow-up commitment. Whether the coach actually delivered it afterward cannot be verified from the transcript and is out of scope -- score only the presence and specificity of the in-call promise.
@@ -238,6 +249,7 @@ Buckets:
       name: "Structure & Time Management",
       max: 5,
       scoringMode: "discrete",
+      scoreRules: [{ band: "Elite", scores: [5] }, { band: "Mid", scores: [3] }, { band: "Fail", scores: [0] }],
       promptSpec: `Pillar: FLOW. Target call length: 25-30 minutes. What to look for: did the call feel intentional and controlled, or scattered/rushed/bloated?
 
 Buckets:

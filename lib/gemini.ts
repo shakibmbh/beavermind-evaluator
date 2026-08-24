@@ -2,6 +2,7 @@ import type { RubricSpec, DimensionResult, EvidenceQuote } from "./rubrics/types
 import { buildGeminiSchema, modelScoredReportSchema } from "./schema";
 import type { ModelScoredReport } from "./rubrics/types";
 import { parseTranscript, formatNumberedTranscript, type TranscriptLine } from "./transcript";
+import { RubricInvariantError, validateRubricInvariants } from "./rubric-invariants";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -144,6 +145,15 @@ export async function scoreTranscriptWithGemini(
     throw new GeminiScoringError(
       `Gemini's response didn't match the expected shape: ${validated.error.issues.map((i) => i.message).join("; ")}`
     );
+  }
+
+  try {
+    validateRubricInvariants(rubric, validated.data);
+  } catch (error) {
+    if (error instanceof RubricInvariantError) {
+      throw new GeminiScoringError(error.message);
+    }
+    throw error;
   }
 
   // Guard against a dimension being dropped despite the schema requiring all ids.

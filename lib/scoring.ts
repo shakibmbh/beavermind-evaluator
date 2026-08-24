@@ -1,5 +1,6 @@
 import type { TalkTimeResult } from "./talk-time";
 import type { RubricSpec, ModelScoredReport, ScoredReport, CapResult, AppliedCap } from "./rubrics/types";
+import { validateRubricInvariants } from "./rubric-invariants";
 
 function gradeBandFor(totalScore: number): string {
   if (totalScore >= 90) return "Elite";
@@ -55,6 +56,7 @@ export function applyCapsAndScore(
   rubric: RubricSpec,
   modelReport: ModelScoredReport
 ): Omit<ScoredReport, "callType" | "unverifiedQuoteCount" | "coachName" | "clientName" | "scoredAt"> {
+  validateRubricInvariants(rubric, modelReport);
   const dimensionById = new Map(modelReport.dimensions.map((d) => [d.id, d]));
   const capById = new Map(rubric.caps.map((c) => [c.id, c]));
 

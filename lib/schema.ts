@@ -18,7 +18,7 @@ export function buildGeminiSchema(rubric: RubricSpec) {
           properties: {
             id: { type: "STRING", enum: dimensionIds },
             score: { type: "NUMBER" },
-            band: { type: "STRING", enum: ["Elite", "Strong", "Mid", "Weak", "Fail", "N/A"] },
+            band: { type: "STRING", enum: ["Elite", "Strong", "Mid", "Surface", "Weak", "Fail", "N/A"] },
             disabled: { type: "BOOLEAN" },
             disabledReason: { type: "STRING" },
             reasoning: { type: "STRING" },
@@ -67,7 +67,7 @@ export function buildGeminiSchema(rubric: RubricSpec) {
 export const dimensionResultSchema = z.object({
   id: z.string(),
   score: z.number(),
-  band: z.enum(["Elite", "Strong", "Mid", "Weak", "Fail", "N/A"]),
+  band: z.enum(["Elite", "Strong", "Mid", "Surface", "Weak", "Fail", "N/A"]),
   disabled: z.boolean(),
   disabledReason: z.string().nullable().default(null),
   reasoning: z.string(),
