@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST, markDispatchFailure } from "./route";
+import { POST } from "./route";
+import { markDispatchFailure as markDispatchFailureImpl } from "../../../lib/run-dispatch";
 
-const { send, supabaseServer } = vi.hoisted(() => ({
+const { send, supabaseServer, markDispatchFailure } = vi.hoisted(() => ({
   send: vi.fn(),
-  supabaseServer: vi.fn()
+  supabaseServer: vi.fn(),
+  markDispatchFailure: vi.fn()
 }));
 
 vi.mock("@/lib/inngest", () => ({ inngest: { send } }));
 vi.mock("@/lib/supabase/server", () => ({ supabaseServer }));
+vi.mock("@/lib/run-dispatch", () => ({ markDispatchFailure }));
 vi.mock("@/lib/transcript", () => ({
   parseTranscript: (transcript: string) => transcript.match(/^\[[^\]]+\]:.*$/gm) ?? []
 }));
@@ -83,10 +86,8 @@ describe("POST /api/runs", () => {
 
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "The evaluation could not be queued for processing. Please try again." });
-    expect(supabase.updateQuery.eq).toHaveBeenNthCalledWith(1, "id", "run-2");
-    expect(supabase.updateQuery.eq).toHaveBeenNthCalledWith(2, "status", "queued");
-    expect(supabase.updateSingle).toHaveBeenCalledOnce();
-    expect(supabase.updateSingle.mock.contexts[0]).toBeDefined();
+    expect(markDispatchFailure).toHaveBeenCalledOnce();
+    expect(markDispatchFailure).toHaveBeenCalledWith(supabase.client, "run-2");
   });
 
   it("still returns a sanitized dispatch error when failure recording fails", async () => {
@@ -106,14 +107,21 @@ describe("POST /api/runs", () => {
 });
 
 describe("dispatch failure handling", () => {
+  it("does not throw when failure recording rejects", async () => {
+    const supabase = makeSupabase();
+    supabase.updateSingle.mockRejectedValue(new Error("database details"));
+
+    await expect(markDispatchFailureImpl(supabase.client, "run-4")).resolves.toBeUndefined();
+  });
+
   it("is safe to repeat when the run is no longer queued", async () => {
     const supabase = makeSupabase();
     supabase.updateSingle
       .mockResolvedValueOnce({ data: { id: "run-4" }, error: null })
       .mockResolvedValueOnce({ data: null, error: { message: "Run was not queued." } });
 
-    await expect(markDispatchFailure(supabase.client, "run-4")).resolves.toBeUndefined();
-    await expect(markDispatchFailure(supabase.client, "run-4")).resolves.toBeUndefined();
+    await expect(markDispatchFailureImpl(supabase.client, "run-4")).resolves.toBeUndefined();
+    await expect(markDispatchFailureImpl(supabase.client, "run-4")).resolves.toBeUndefined();
     expect(supabase.updateSingle).toHaveBeenCalledTimes(2);
   });
 });
