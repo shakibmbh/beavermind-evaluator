@@ -52,7 +52,6 @@ export function DimensionCard({
             </p>
           ) : (
             <>
-              <p className="text-xs uppercase tracking-wide text-inkMuted">{dimension.band}</p>
               <p className="text-sm text-ink leading-relaxed">{dimension.reasoning}</p>
 
               <div>

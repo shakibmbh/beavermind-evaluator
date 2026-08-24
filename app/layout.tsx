@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Fraunces, Inter, IBM_Plex_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 
 const display = Fraunces({
@@ -21,6 +21,13 @@ const mono = IBM_Plex_Mono({
   variable: "--font-mono"
 });
 
+const quote = Newsreader({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  style: ["italic"],
+  variable: "--font-quote"
+});
+
 export const metadata: Metadata = {
   title: "Call Evaluator",
   description: "Paste a call transcript, get a rubric-scored evaluation with evidence."
@@ -28,7 +35,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable} ${quote.variable}`}>
       <body>{children}</body>
     </html>
   );
