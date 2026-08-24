@@ -99,6 +99,60 @@ describe("rubric invariant validation", () => {
     expectInvariantFailure(report, coachingRubric, "disabled_missing_reason");
   });
 
+  it("rejects disabling every required dimension", () => {
+    for (const spec of [...kickoffRubric.dimensions, ...coachingRubric.dimensions].filter((dimension) => !dimension.optional)) {
+      const rubric = spec.id === "d1" && coachingRubric.dimensions.includes(spec) ? coachingRubric : kickoffRubric;
+      const report = validReport(rubric);
+      const dimension = report.dimensions.find((candidate) => candidate.id === spec.id)!;
+      dimension.disabled = true;
+      dimension.band = "N/A";
+      dimension.score = 0;
+      dimension.disabledReason = "Not applicable.";
+
+      expectInvariantFailure(report, rubric, "required_dimension_disabled");
+    }
+  });
+
+  it("allows Coaching D2 and D4 to use the existing disabled representation", () => {
+    const report = validReport(coachingRubric);
+    for (const dimensionId of ["d2", "d4"]) {
+      const dimension = report.dimensions.find((candidate) => candidate.id === dimensionId)!;
+      dimension.disabled = true;
+      dimension.band = "N/A";
+      dimension.score = 0;
+      dimension.disabledReason = "This call did not include the applicable review.";
+    }
+
+    expect(() => validateRubricInvariants(coachingRubric, report)).not.toThrow();
+  });
+
+  it("excludes disabled optional dimensions from normalization", () => {
+    const report = validReport(coachingRubric);
+    for (const dimensionId of ["d2", "d4"]) {
+      const dimension = report.dimensions.find((candidate) => candidate.id === dimensionId)!;
+      dimension.disabled = true;
+      dimension.band = "N/A";
+      dimension.score = 0;
+      dimension.disabledReason = "This call did not include the applicable review.";
+    }
+
+    const scored = applyCapsAndScore(coachingRubric, report);
+    expect(scored.rawScore).toBe(80);
+    expect(scored.rawMax).toBe(80);
+    expect(scored.totalScore).toBe(100);
+  });
+
+  it("cannot inflate the score by disabling a required dimension", () => {
+    const report = validReport(coachingRubric);
+    const dimension = report.dimensions.find((candidate) => candidate.id === "d1")!;
+    dimension.disabled = true;
+    dimension.band = "N/A";
+    dimension.score = 0;
+    dimension.disabledReason = "Not applicable.";
+
+    expect(() => applyCapsAndScore(coachingRubric, report)).toThrow(RubricInvariantError);
+  });
+
   it("rejects an enabled dimension marked N/A", () => {
     const report = validReport(coachingRubric);
     report.dimensions[0].band = "N/A";

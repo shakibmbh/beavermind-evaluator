@@ -47,6 +47,9 @@ export function validateRubricInvariants(rubric: RubricSpec, report: Validatable
     }
 
     if (dimension.disabled) {
+      if (!spec.optional) {
+        issues.push({ code: "required_dimension_disabled", dimensionId: dimension.id, message: `Required dimension "${dimension.id}" cannot be disabled.` });
+      }
       if (dimension.score !== 0) {
         issues.push({ code: "disabled_nonzero_score", dimensionId: dimension.id, message: `Disabled dimension "${dimension.id}" must have score 0.` });
       }
