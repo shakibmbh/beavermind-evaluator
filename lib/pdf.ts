@@ -100,6 +100,8 @@ function drawPageHeader(doc: PDFKit.PDFDocument, report: ScoredReport, callType:
   doc.fillColor(INK_MUTED).font("Helvetica").fontSize(7).text(generatedText, rightX, headerY + 11, { align: "right", width: 140 });
 
   doc.moveTo(MARGIN, 56).lineTo(PAGE_WIDTH - MARGIN, 56).strokeColor(LINE).lineWidth(1).stroke();
+  doc.x = MARGIN;
+  doc.y = 68;
 }
 
 function drawPageFooter(doc: PDFKit.PDFDocument, pageNumber: number) {
