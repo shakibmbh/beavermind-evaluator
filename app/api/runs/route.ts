@@ -5,6 +5,39 @@ import type { CallType } from "@/lib/rubrics/types";
 
 const VALID_CALL_TYPES: CallType[] = ["kickoff", "coaching"];
 const MAX_TRANSCRIPT_CHARS = 200_000; // generous headroom above the largest sample (~65KB)
+const DISPATCH_FAILURE_MESSAGE = "The evaluation could not be queued for processing. Please try again.";
+
+type RunUpdateClient = {
+  from: (table: "runs") => {
+    update: (values: { status: "failed"; error_message: string }) => {
+      eq: (column: "id" | "status", value: string) => {
+        eq: (column: "id" | "status", value: string) => {
+          select: (columns: string) => {
+            single: () => Promise<{ data: { id: string } | null; error: { message: string } | null }>;
+          };
+        };
+      };
+    };
+  };
+};
+
+export async function markDispatchFailure(supabase: RunUpdateClient, runId: string): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from("runs")
+      .update({ status: "failed", error_message: DISPATCH_FAILURE_MESSAGE })
+      .eq("id", runId)
+      .eq("status", "queued")
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      console.error("Failed to mark run as failed after event dispatch error", error?.message ?? "Run was not queued.");
+    }
+  } catch (error) {
+    console.error("Failed to mark run as failed after event dispatch error", error instanceof Error ? error.message : "Unknown database error.");
+  }
+}
 
 export async function POST(req: Request) {
   let body: { callType?: string; transcript?: string };
@@ -57,17 +90,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // This returns as soon as Inngest has accepted the event.
-    await inngest.send({
-      name: "run/created",
-      data: { runId: run.id, callType, transcript }
-    });
+    try {
+      // This returns as soon as Inngest has accepted the event.
+      await inngest.send({
+        name: "run/created",
+        data: { runId: run.id, callType, transcript }
+      });
+    } catch (dispatchError) {
+      await markDispatchFailure(supabase, run.id);
+      console.error("Failed to dispatch evaluation", dispatchError instanceof Error ? dispatchError.message : "Unknown dispatch error.");
+      return NextResponse.json({ error: DISPATCH_FAILURE_MESSAGE }, { status: 503 });
+    }
 
     return NextResponse.json({ id: run.id }, { status: 201 });
   } catch (error) {
     console.error("Failed to start evaluation", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to start the evaluation." },
+      { error: "Failed to start the evaluation." },
       { status: 500 }
     );
   }
