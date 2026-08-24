@@ -83,8 +83,8 @@ function drawPageHeader(doc: PDFKit.PDFDocument, report: ScoredReport, callType:
   const headerY = 26;
   const headerLeftWidth = 180;
   doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(7.5).text("BEAVERMIND", MARGIN, headerY, { width: headerLeftWidth });
-  doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(6.6).text(`COACH  ${pdfText(report.coachName)}`, MARGIN, headerY + 13, { width: headerLeftWidth });
-  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(6.6).text(`CLIENT  ${pdfText(report.clientName ?? "Unknown client")}`, MARGIN, headerY + 23, { width: headerLeftWidth });
+  doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(8).text(`COACH  ${pdfText(report.coachName)}`, MARGIN, headerY + 13, { width: headerLeftWidth });
+  doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(8).text(`CLIENT  ${pdfText(report.clientName ?? "Unknown client")}`, MARGIN, headerY + 25, { width: headerLeftWidth });
 
   const title = callType === "kickoff" ? "KICK-OFF CALL EVALUATION" : "CALL EVALUATION";
   doc.fillColor(INK_MUTED).font("Helvetica").fontSize(7).text(title, PAGE_WIDTH / 2 - 100, headerY, { align: "center", width: 200 });
