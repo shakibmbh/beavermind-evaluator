@@ -19,22 +19,23 @@ export function ReportView({
 
   return (
     <div className="space-y-8 pb-16">
-      {pdfUrl && <div className="flex justify-end">
-        <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md bg-teal text-paper text-sm font-medium px-4 py-2 hover:bg-teal-dark transition-colors shrink-0">
-          <Download size={15} aria-hidden="true" />
-          Download PDF
-        </a>
-      </div>}
-
-      <section>
-        <p className="font-mono text-xs tracking-widest uppercase text-inkMuted">
-          {callType === "kickoff" ? "Kick-off call" : "Coaching call"}
-        </p>
-        <p className="text-xl font-semibold text-ink mt-1">{report.clientName ?? "Unknown client"}</p>
-        <p className="text-sm text-inkMuted mt-1">Coached by <span className="font-medium text-ink">{report.coachName}</span></p>
+      <section className="flex items-center justify-between gap-4 flex-wrap-reverse">
+        <div>
+          <p className="font-mono text-xs tracking-widest uppercase text-inkMuted">
+            {callType === "kickoff" ? "Kick-off call" : "Coaching call"}
+          </p>
+          <p className="text-xl font-semibold text-ink mt-1">{report.clientName ?? "Unknown client"}</p>
+          <p className="text-sm text-inkMuted mt-1">Coached by <span className="font-medium text-ink">{report.coachName}</span></p>
+        </div>
+        {pdfUrl && (
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md bg-teal text-paper text-sm font-medium px-4 py-2 hover:bg-teal-dark transition-colors shrink-0">
+            <Download size={15} aria-hidden="true" />
+            Download PDF
+          </a>
+        )}
       </section>
 
-      <header className="flex items-start justify-between gap-8 flex-wrap-reverse">
+      <header className="flex items-center justify-between gap-8 flex-wrap-reverse">
         <div className="flex-1 min-w-[280px]">
           <p className="font-quote italic font-semibold text-2xl md:text-[28px] leading-snug text-ink mb-3">&ldquo;{report.oneThing.change}&rdquo;</p>
           <p className="text-sm text-inkMuted">Projected score with this change: <span className="text-teal font-medium">{report.oneThing.projectedScore}/100</span></p>
