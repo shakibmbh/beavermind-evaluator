@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { applyCapsAndScore } from "./scoring";
-import { RubricInvariantError, validateRubricInvariants } from "./rubric-invariants";
-import type { ModelScoredReport, RubricSpec } from "./rubrics/types";
+import { applyCapsAndScore, applyComputedCapOverrides } from "./scoring";
+import { RubricInvariantError, validateRubricCapInvariants, validateRubricInvariants } from "./rubric-invariants";
+import type { CapResult, ModelScoredReport, RubricSpec } from "./rubrics/types";
 import { kickoffRubric } from "./rubrics/kickoff";
 import { coachingRubric } from "./rubrics/coaching";
 
@@ -22,7 +22,7 @@ function validReport(rubric: RubricSpec): ModelScoredReport {
         quotes: []
       };
     }),
-    caps: [],
+    caps: rubric.caps.map((spec) => ({ id: spec.id, label: spec.label, triggered: false, note: "Not triggered." })),
     oneThing: { change: "Improve the highest-leverage moment.", projectedScore: 100 },
     brief: "The coach delivered the call.",
     redFlags: [],
@@ -30,10 +30,29 @@ function validReport(rubric: RubricSpec): ModelScoredReport {
   };
 }
 
+function capResults(rubric: RubricSpec, triggeredIds: string[] = []): CapResult[] {
+  return rubric.caps.map((spec) => ({
+    id: spec.id,
+    label: spec.label,
+    triggered: triggeredIds.includes(spec.id),
+    note: triggeredIds.includes(spec.id) ? "Triggered." : "Not triggered."
+  }));
+}
+
 function expectInvariantFailure(report: ModelScoredReport, rubric: RubricSpec, code: string) {
   try {
     validateRubricInvariants(rubric, report);
     throw new Error("Expected invariant validation to fail.");
+  } catch (error) {
+    expect(error).toBeInstanceOf(RubricInvariantError);
+    expect((error as RubricInvariantError).issues.map((issue) => issue.code)).toContain(code);
+  }
+}
+
+function expectCapInvariantFailure(rubric: RubricSpec, caps: CapResult[], code: string) {
+  try {
+    validateRubricCapInvariants(rubric, caps);
+    throw new Error("Expected cap invariant validation to fail.");
   } catch (error) {
     expect(error).toBeInstanceOf(RubricInvariantError);
     expect((error as RubricInvariantError).issues.map((issue) => issue.code)).toContain(code);
@@ -163,6 +182,87 @@ describe("rubric invariant validation", () => {
     const report = validReport(kickoffRubric);
     report.dimensions[1].id = report.dimensions[0].id;
     expectInvariantFailure(report, kickoffRubric, "duplicate_dimension");
+  });
+
+  it("accepts every rubric cap exactly once", () => {
+    expect(() => validateRubricCapInvariants(kickoffRubric, capResults(kickoffRubric))).not.toThrow();
+    expect(() => validateRubricCapInvariants(coachingRubric, capResults(coachingRubric))).not.toThrow();
+  });
+
+  it("rejects a missing cap", () => {
+    const caps = capResults(kickoffRubric);
+    caps.pop();
+    expectCapInvariantFailure(kickoffRubric, caps, "missing_cap");
+  });
+
+  it("rejects a duplicate cap", () => {
+    const caps = capResults(kickoffRubric);
+    caps.push({ ...caps[0] });
+    expectCapInvariantFailure(kickoffRubric, caps, "duplicate_cap");
+  });
+
+  it("rejects an unknown cap", () => {
+    const caps = capResults(kickoffRubric);
+    caps[0] = { ...caps[0], id: "unknown_cap" };
+    expectCapInvariantFailure(kickoffRubric, caps, "unexpected_cap");
+  });
+
+  it("computes an objectively triggered talk-share cap", () => {
+    const caps = capResults(kickoffRubric).filter((cap) => cap.id !== "coach_talks_over_70pct");
+    const computed = applyComputedCapOverrides(kickoffRubric, caps, {
+      coachName: "Coach",
+      clientName: "Client",
+      coachWordShare: 71,
+      totalTurns: 2
+    });
+    expect(computed.find((cap) => cap.id === "coach_talks_over_70pct")).toMatchObject({ triggered: true });
+  });
+
+  it("computes an objectively untriggered talk-share cap", () => {
+    const computed = applyComputedCapOverrides(kickoffRubric, capResults(kickoffRubric), {
+      coachName: "Coach",
+      clientName: "Client",
+      coachWordShare: 70,
+      totalTurns: 2
+    });
+    expect(computed.find((cap) => cap.id === "coach_talks_over_70pct")).toMatchObject({ triggered: false });
+  });
+
+  it("applies multiple simultaneous caps deterministically", () => {
+    const report = validReport(kickoffRubric);
+    report.caps = capResults(kickoffRubric, ["no_followup_questions", "unresolved_confusion", "no_north_star"]);
+    const scored = applyCapsAndScore(kickoffRubric, report);
+    expect(scored.totalScore).toBe(70);
+    expect(scored.dimensions.find((dimension) => dimension.id === "d4")?.score).toBe(10);
+  });
+
+  it("rejects an LLM response that omits a semantic cap", () => {
+    const caps = capResults(kickoffRubric).filter((cap) => cap.id !== "no_followup_questions");
+    try {
+      applyComputedCapOverrides(kickoffRubric, caps, {
+        coachName: "Coach",
+        clientName: "Client",
+        coachWordShare: 20,
+        totalTurns: 2
+      });
+      throw new Error("Expected missing cap validation to fail.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(RubricInvariantError);
+      expect((error as RubricInvariantError).issues.map((issue) => issue.code)).toContain("missing_cap");
+    }
+  });
+
+  it("reconstructs an omitted triggered objective cap instead of treating it as false", () => {
+    const caps = capResults(kickoffRubric).filter((cap) => cap.id !== "coach_talks_over_70pct");
+    const computed = applyComputedCapOverrides(kickoffRubric, caps, {
+      coachName: "Coach",
+      clientName: "Client",
+      coachWordShare: 80,
+      totalTurns: 2
+    });
+    const report = validReport(kickoffRubric);
+    report.caps = computed;
+    expect(applyCapsAndScore(kickoffRubric, report).totalScore).toBe(80);
   });
 
   it("calculates the deterministic total independently of the LLM projected score", () => {

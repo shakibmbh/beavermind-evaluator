@@ -1,4 +1,4 @@
-import type { RubricSpec, ModelDimensionResult } from "./rubrics/types";
+import type { RubricSpec, ModelDimensionResult, CapResult } from "./rubrics/types";
 
 export interface RubricInvariantIssue {
   code: string;
@@ -21,6 +21,34 @@ type ValidatableDimension = Pick<ModelDimensionResult, "id" | "score" | "band" |
 type ValidatableReport = {
   dimensions: ValidatableDimension[];
 };
+
+export function validateRubricCapIdentifiers(rubric: RubricSpec, caps: CapResult[]): void {
+  const issues: RubricInvariantIssue[] = [];
+  const specsById = new Map(rubric.caps.map((cap) => [cap.id, cap]));
+  const seen = new Set<string>();
+
+  for (const cap of caps) {
+    if (!specsById.has(cap.id)) {
+      issues.push({ code: "unexpected_cap", message: `Unexpected cap ID "${cap.id}".` });
+    }
+    if (seen.has(cap.id)) {
+      issues.push({ code: "duplicate_cap", message: `Cap "${cap.id}" was returned more than once.` });
+    }
+    seen.add(cap.id);
+  }
+
+  if (issues.length > 0) throw new RubricInvariantError(issues);
+}
+
+export function validateRubricCapInvariants(rubric: RubricSpec, caps: CapResult[]): void {
+  validateRubricCapIdentifiers(rubric, caps);
+  const returnedIds = new Set(caps.map((cap) => cap.id));
+  const missing = rubric.caps
+    .filter((spec) => !returnedIds.has(spec.id))
+    .map((spec) => ({ code: "missing_cap", message: `Required cap "${spec.id}" is missing.` }));
+
+  if (missing.length > 0) throw new RubricInvariantError(missing);
+}
 
 export function validateRubricInvariants(rubric: RubricSpec, report: ValidatableReport): void {
   const issues: RubricInvariantIssue[] = [];

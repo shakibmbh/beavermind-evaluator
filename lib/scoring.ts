@@ -1,6 +1,6 @@
 import type { TalkTimeResult } from "./talk-time";
 import type { RubricSpec, ModelScoredReport, ScoredReport, CapResult, AppliedCap } from "./rubrics/types";
-import { validateRubricInvariants } from "./rubric-invariants";
+import { validateRubricCapIdentifiers, validateRubricCapInvariants, validateRubricInvariants } from "./rubric-invariants";
 
 function gradeBandFor(totalScore: number): string {
   if (totalScore >= 90) return "Elite";
@@ -15,8 +15,8 @@ export function applyComputedCapOverrides(
   caps: CapResult[],
   talkTime: TalkTimeResult
 ): CapResult[] {
+  validateRubricCapIdentifiers(rubric, caps);
   const computedCapSpecs = rubric.caps.filter((c) => c.computedBy === "coachTalkShare");
-  if (computedCapSpecs.length === 0) return caps;
 
   const capById = new Map(caps.map((c) => [c.id, c]));
 
@@ -34,6 +34,7 @@ export function applyComputedCapOverrides(
     }
   }
 
+  validateRubricCapInvariants(rubric, caps);
   return caps;
 }
 
@@ -57,6 +58,7 @@ export function applyCapsAndScore(
   modelReport: ModelScoredReport
 ): Omit<ScoredReport, "callType" | "unverifiedQuoteCount" | "coachName" | "clientName" | "scoredAt"> {
   validateRubricInvariants(rubric, modelReport);
+  validateRubricCapInvariants(rubric, modelReport.caps);
   const dimensionById = new Map(modelReport.dimensions.map((d) => [d.id, d]));
   const capById = new Map(rubric.caps.map((c) => [c.id, c]));
 
