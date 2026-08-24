@@ -81,21 +81,15 @@ const GAUGE_BAND_CHIP: Record<string, { bg: string; text: string }> = {
 
 function drawPageHeader(doc: PDFKit.PDFDocument, report: ScoredReport, callType: CallType, pageNumber: number) {
   const headerY = 26;
-  doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(7.5).text("BEAVERMIND", MARGIN, headerY, { width: 170 });
-  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(7).text(
-    callType === "kickoff" ? "KICK-OFF CALL EVALUATION" : "CALL EVALUATION",
-    MARGIN + 130,
-    headerY
-  );
+  const headerLeftWidth = 180;
+  doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(7.5).text("BEAVERMIND", MARGIN, headerY, { width: headerLeftWidth });
+  doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(6.6).text(`COACH  ${pdfText(report.coachName)}`, MARGIN, headerY + 13, { width: headerLeftWidth });
+  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(6.6).text(`CLIENT  ${pdfText(report.clientName ?? "Unknown client")}`, MARGIN, headerY + 23, { width: headerLeftWidth });
+
+  const title = callType === "kickoff" ? "KICK-OFF CALL EVALUATION" : "CALL EVALUATION";
+  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(7).text(title, PAGE_WIDTH / 2 - 100, headerY, { align: "center", width: 200 });
 
   const rightX = PAGE_WIDTH - MARGIN - 140;
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.5).text(
-    `${pdfText(report.clientName ?? "Unknown client")} · ${pdfText(report.coachName)}`,
-    rightX,
-    headerY,
-    { align: "right", width: 140 }
-  );
-
   const generatedText = `Generated ${new Date(report.scoredAt).toLocaleString()}`;
   doc.fillColor(INK_MUTED).font("Helvetica").fontSize(7).text(generatedText, rightX, headerY + 11, { align: "right", width: 140 });
 
@@ -172,13 +166,13 @@ function drawGauge(doc: PDFKit.PDFDocument, score: number, gradeBand: string, cx
 }
 
 function drawOverallScore(doc: PDFKit.PDFDocument, report: ScoredReport, x: number, y: number, width: number): number {
-  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("OVERALL SCORE", x, y);
   const centerX = x + width / 2;
+  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("OVERALL SCORE", x, y, { width, align: "center" });
   const centerY = y + 62;
   drawGauge(doc, report.totalScore, report.gradeBand, centerX, centerY);
   const projectedText = `Projected score ${pdfText(report.oneThing.projectedScore)} / 100   +${(report.oneThing.projectedScore - report.totalScore).toFixed(1)}`;
   const projectedHeight = measureParagraph(doc, projectedText, { width, size: 8, lineGap: 2 });
-  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8).text(projectedText, x, centerY + 74, { width });
+  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8).text(projectedText, x, centerY + 74, { width, align: "center" });
   return centerY + 74 + projectedHeight + 10;
 }
 

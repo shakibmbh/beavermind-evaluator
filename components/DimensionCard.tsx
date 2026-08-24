@@ -20,6 +20,9 @@ export function DimensionCard({
   const [expandedQuotes, setExpandedQuotes] = useState<Set<number>>(new Set());
   const number = dimension.id.replace(/\D/g, "");
   const status = dimensionStatus(dimension.disabled ? "N/A" : dimension.band);
+  const visibleQuotes = Array.isArray(dimension.keyEvidence) && dimension.keyEvidence.length > 0
+    ? dimension.keyEvidence
+    : dimension.quotes;
 
   return (
     <div className="border border-line rounded-lg overflow-hidden bg-white/40">
@@ -59,9 +62,9 @@ export function DimensionCard({
                   <QuoteIcon size={13} aria-hidden="true" />
                   <span className="uppercase tracking-wide">Evidence</span>
                 </div>
-                {dimension.quotes.length > 0 ? (
+                {visibleQuotes.length > 0 ? (
                   <div className="space-y-2.5">
-                  {dimension.quotes.map((q, i) => (
+                  {visibleQuotes.map((q, i) => (
                     <div key={i} className="border-l-2 border-line pl-3 py-0.5 space-y-1">
                       {splitQuoteIntoTurns(q, coachName, clientName).map((turn, j) => (
                         <p key={j} className="font-mono text-xs leading-relaxed">
