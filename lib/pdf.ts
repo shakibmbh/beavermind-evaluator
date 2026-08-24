@@ -93,9 +93,9 @@ function drawPageHeader(doc: PDFKit.PDFDocument, report: ScoredReport, callType:
   const generatedText = `Generated ${new Date(report.scoredAt).toLocaleString()}`;
   doc.fillColor(INK_MUTED).font("Helvetica").fontSize(7).text(generatedText, rightX, headerY + 11, { align: "right", width: 140 });
 
-  doc.moveTo(MARGIN, 56).lineTo(PAGE_WIDTH - MARGIN, 56).strokeColor(LINE).lineWidth(1).stroke();
+  doc.moveTo(MARGIN, 68).lineTo(PAGE_WIDTH - MARGIN, 68).strokeColor(LINE).lineWidth(1).stroke();
   doc.x = MARGIN;
-  doc.y = 68;
+  doc.y = 80;
 }
 
 function drawPageFooter(doc: PDFKit.PDFDocument, pageNumber: number) {
@@ -372,24 +372,30 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
 
     const addHeader = () => drawPageHeader(document, report, callType, pageNumberRef.current);
     addHeader();
-    document.y = 78;
+    document.y = 90;
 
     const contentWidth = PAGE_WIDTH - MARGIN * 2;
     const columnGap = 18;
     const leftColWidth = (contentWidth - columnGap) * 0.58;
     const rightColX = MARGIN + leftColWidth + columnGap;
     const rightColWidth = contentWidth - leftColWidth - columnGap;
-    const firstRowY = 92;
+    const firstRowY = 106;
 
     const oneThingEndY = drawOneThing(document, report, MARGIN, firstRowY, leftColWidth);
     const overallScoreEndY = drawOverallScore(document, report, rightColX, firstRowY, rightColWidth);
     const briefY = Math.max(oneThingEndY, overallScoreEndY) + 4;
     const briefEndY = drawBrief(document, report.brief, MARGIN, briefY, contentWidth);
     const bottomRowY = briefEndY + 2;
-    const redFlagsEndY = drawRedFlags(document, report.redFlags, MARGIN, bottomRowY, leftColWidth);
-    const capsEndY = drawCaps(document, report.capsApplied, rightColX, bottomRowY, rightColWidth);
+    let bottomRowEndY: number;
+    if (report.capsApplied.length === 0) {
+      bottomRowEndY = drawRedFlags(document, report.redFlags, MARGIN, bottomRowY, contentWidth);
+    } else {
+      const redFlagsEndY = drawRedFlags(document, report.redFlags, MARGIN, bottomRowY, leftColWidth);
+      const capsEndY = drawCaps(document, report.capsApplied, rightColX, bottomRowY, rightColWidth);
+      bottomRowEndY = Math.max(redFlagsEndY, capsEndY);
+    }
 
-    document.y = Math.max(redFlagsEndY, capsEndY) + 12;
+    document.y = bottomRowEndY + 12;
     drawPageFooter(document, pageNumber);
 
     pageNumberRef.current += 1;
