@@ -18,7 +18,6 @@ const FLAG = "#B4432F";
 const FLAG_SOFT = "#F7E8E6";
 const LINE = "#D7D5CD";
 const GREY_SOFT = "#F3F0EC";
-const GREEN = "#2E6F61";
 
 function pdfText(value: unknown): string {
   if (typeof value === "string") return value;
@@ -34,11 +33,51 @@ function pdfText(value: unknown): string {
 
 function getBandColor(band: string): string {
   const normalized = band.toLowerCase();
-  if (normalized.includes("elite") || normalized.includes("strong")) return GREEN;
+  if (normalized.includes("elite") || normalized.includes("strong")) return TEAL;
   if (normalized.includes("inconsistent") || normalized.includes("mid")) return AMBER;
   if (normalized.includes("at risk") || normalized.includes("weak")) return FLAG;
   return INK_MUTED;
 }
+
+function measureParagraph(doc: PDFKit.PDFDocument, text: string, options: { width: number; size?: number; lineGap?: number; font?: string }): number {
+  const size = options.size ?? 9.5;
+  const lineGap = options.lineGap ?? 3;
+  doc.font(options.font ?? "Helvetica").fontSize(size);
+  return doc.heightOfString(text, { width: options.width, lineGap });
+}
+
+function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
+  const angleRad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + radius * Math.cos(angleRad), y: cy + radius * Math.sin(angleRad) };
+}
+
+function describeGaugeArc(cx: number, cy: number, radius: number, sweepDeg: number): string {
+  const clamped = Math.min(sweepDeg, 359.9);
+  const top = polarToCartesian(cx, cy, radius, 0);
+  if (clamped <= 180) {
+    const end = polarToCartesian(cx, cy, radius, clamped);
+    return `M ${top.x} ${top.y} A ${radius} ${radius} 0 0 1 ${end.x} ${end.y}`;
+  }
+  const mid = polarToCartesian(cx, cy, radius, 180);
+  const end = polarToCartesian(cx, cy, radius, clamped);
+  return `M ${top.x} ${top.y} A ${radius} ${radius} 0 0 1 ${mid.x} ${mid.y} A ${radius} ${radius} 0 0 1 ${end.x} ${end.y}`;
+}
+
+const GAUGE_BAND_STROKE: Record<string, string> = {
+  Elite: TEAL,
+  Strong: TEAL,
+  Inconsistent: AMBER,
+  "At Risk": FLAG,
+  Fail: FLAG
+};
+
+const GAUGE_BAND_CHIP: Record<string, { bg: string; text: string }> = {
+  Elite: { bg: TEAL_SOFT, text: TEAL },
+  Strong: { bg: TEAL_SOFT, text: TEAL },
+  Inconsistent: { bg: AMBER_SOFT, text: AMBER },
+  "At Risk": { bg: FLAG_SOFT, text: FLAG },
+  Fail: { bg: FLAG_SOFT, text: FLAG }
+};
 
 function drawPageHeader(doc: PDFKit.PDFDocument, report: ScoredReport, callType: CallType, pageNumber: number) {
   const headerY = 26;
@@ -95,103 +134,144 @@ function maybeAddPageBefore(doc: PDFKit.PDFDocument, requiredHeight: number, add
   }
 }
 
-function drawOverallScore(doc: PDFKit.PDFDocument, report: ScoredReport, x = MARGIN, y = 80) {
+function drawGauge(doc: PDFKit.PDFDocument, score: number, gradeBand: string, cx: number, cy: number): void {
+  const radius = 46;
+  const strokeWidth = 9;
+  const pct = Math.max(0, Math.min(100, score));
+
+  doc.save();
+  doc.circle(cx, cy, radius).lineWidth(strokeWidth).strokeColor("#DEDDD6").stroke();
+  if (pct > 0) {
+    const stroke = GAUGE_BAND_STROKE[gradeBand] ?? INK_MUTED;
+    doc.path(describeGaugeArc(cx, cy, radius, (pct / 100) * 360))
+      .lineWidth(strokeWidth)
+      .lineCap("round")
+      .strokeColor(stroke)
+      .stroke();
+  }
+  doc.restore();
+
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(20).text(String(Math.round(score)), cx - radius, cy - 12, {
+    width: radius * 2,
+    align: "center"
+  });
+  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8).text("/100", cx - radius, cy + 10, { width: radius * 2, align: "center" });
+
+  const chip = GAUGE_BAND_CHIP[gradeBand] ?? { bg: "#EFEDE7", text: INK_MUTED };
+  const chipY = cy + radius + 12;
+  const chipText = gradeBand.toUpperCase();
+  doc.font("Helvetica-Bold").fontSize(7.5);
+  const chipWidth = doc.widthOfString(chipText) + 16;
+  doc.roundedRect(cx - chipWidth / 2, chipY, chipWidth, 16, 8).fillColor(chip.bg).fill();
+  doc.fillColor(chip.text).text(chipText, cx - chipWidth / 2, chipY + 4, { width: chipWidth, align: "center" });
+}
+
+function drawOverallScore(doc: PDFKit.PDFDocument, report: ScoredReport, x: number, y: number, width: number): number {
   doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("OVERALL SCORE", x, y);
-  const scoreY = y + 18;
-  doc.fillColor(AMBER).font("Helvetica-Bold").fontSize(30).text(`${pdfText(report.totalScore)}/100`, x, scoreY);
-
-  const bandColor = getBandColor(report.gradeBand);
-  doc.fillColor(bandColor).font("Helvetica-Bold").fontSize(9).text(pdfText(report.gradeBand).toUpperCase(), x, scoreY + 30);
-
-  const barWidth = 150;
-  const barX = x;
-  const barY = scoreY + 44;
-  const fillWidth = (report.totalScore / 100) * barWidth;
-  doc.rect(barX, barY, barWidth, 8).fillColor("#E5E2DA").fill();
-  doc.rect(barX, barY, fillWidth, 8).fillColor(TEAL).fill();
-
-  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8).text(
-    `Projected score ${pdfText(report.oneThing.projectedScore)} / 100   +${(report.oneThing.projectedScore - report.totalScore).toFixed(1)}`,
-    barX,
-    barY + 14,
-    { width: 220 }
-  );
-
-  doc.y = barY + 38;
+  const centerX = x + width / 2;
+  const centerY = y + 62;
+  drawGauge(doc, report.totalScore, report.gradeBand, centerX, centerY);
+  const projectedText = `Projected score ${pdfText(report.oneThing.projectedScore)} / 100   +${(report.oneThing.projectedScore - report.totalScore).toFixed(1)}`;
+  const projectedHeight = measureParagraph(doc, projectedText, { width, size: 8, lineGap: 2 });
+  doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8).text(projectedText, x, centerY + 74, { width });
+  return centerY + 74 + projectedHeight + 10;
 }
 
-function drawOneThing(doc: PDFKit.PDFDocument, report: ScoredReport, x = MARGIN, y = 140, width = 300) {
-  const blockY = y;
-  const blockHeight = 120;
-  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("THE ONE THING", x, blockY);
-  doc.roundedRect(x, blockY + 14, width, blockHeight, 6).fillColor(GREY_SOFT).fill();
-  doc.fillColor(INK).font("Helvetica-Oblique").fontSize(15).text(`“${pdfText(report.oneThing.change)}”`, x + 12, blockY + 28, { width: width - 24, lineGap: 4 });
+function drawOneThing(doc: PDFKit.PDFDocument, report: ScoredReport, x: number, y: number, width: number): number {
+  const contentWidth = width - 24;
+  const quote = `“${pdfText(report.oneThing.change)}”`;
+  const quoteHeight = measureParagraph(doc, quote, { width: contentWidth, size: 15, lineGap: 4, font: "Helvetica-Oblique" });
+  const boxY = y + 14;
+  const boxHeight = quoteHeight + 44;
 
-  const projectedText = `Projected score    ${pdfText(report.oneThing.projectedScore)}    ↑ +${(report.oneThing.projectedScore - report.totalScore).toFixed(1)}`;
-  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8).text(projectedText, x + 12, blockY + 92, { width: width - 24 });
+  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("THE ONE THING", x, y);
+  doc.roundedRect(x, boxY, width, boxHeight, 6).fillColor(GREY_SOFT).fill();
+  doc.fillColor(INK).font("Helvetica-Oblique").fontSize(15).text(quote, x + 12, boxY + 14, { width: contentWidth, lineGap: 4 });
 
-  doc.y = blockY + blockHeight + 18;
+  const projectedY = boxY + 14 + quoteHeight + 10;
+  const projectedText = `Projected score    ${pdfText(report.oneThing.projectedScore)}    +${(report.oneThing.projectedScore - report.totalScore).toFixed(1)}`;
+  doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8).text(projectedText, x + 12, projectedY, { width: contentWidth });
+  return boxY + boxHeight + 12;
 }
 
-function drawBrief(doc: PDFKit.PDFDocument, brief: string, x = MARGIN, y = 96, width = 260) {
+function drawBrief(doc: PDFKit.PDFDocument, brief: string, x: number, y: number, width: number): number {
+  const textHeight = measureParagraph(doc, brief, { width, size: 9.5, lineGap: 4 });
   doc.fillColor(TEAL).font("Helvetica-Bold").fontSize(8.2).text("THE BRIEF", x, y);
   doc.fillColor(INK).font("Helvetica").fontSize(9.5).text(brief, x, y + 20, { width, lineGap: 4 });
+  return y + 20 + textHeight + 12;
 }
 
-function drawRedFlags(doc: PDFKit.PDFDocument, redFlags: string[], x = MARGIN, y = 340, width = 300) {
+function drawRedFlags(doc: PDFKit.PDFDocument, redFlags: string[], x: number, y: number, width: number): number {
   if (redFlags.length === 0) {
-    doc.roundedRect(x, y, width, 76, 6).fillColor(GREY_SOFT).fill();
+    const boxHeight = 76;
+    doc.roundedRect(x, y, width, boxHeight, 6).fillColor(GREY_SOFT).fill();
     doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.2).text("RED FLAGS", x + 12, y + 12);
     doc.fillColor(INK_MUTED).font("Helvetica").fontSize(9.5).text("None identified in this call.", x + 12, y + 30, { width: width - 24 });
-    return;
+    return y + boxHeight + 12;
   }
 
-  const boxHeight = Math.max(82, 26 + redFlags.length * 18);
+  const itemWidth = width - 32;
+  const itemHeights = redFlags.map((flag) => measureParagraph(doc, flag, { width: itemWidth, size: 8.8, lineGap: 2 }));
+  const boxHeight = Math.max(82, 30 + itemHeights.reduce((sum, height) => sum + height + 5, 0) + 8);
   doc.roundedRect(x, y, width, boxHeight, 6).fillColor(FLAG_SOFT).fill();
   doc.fillColor(FLAG).font("Helvetica-Bold").fontSize(8.2).text(`RED FLAGS · ${redFlags.length}`, x + 12, y + 12);
 
+  let itemY = y + 30;
   redFlags.forEach((flag, index) => {
-    const lineY = y + 30 + index * 17;
-    doc.fillColor(FLAG).font("Helvetica-Bold").fontSize(10).text("•", x + 12, lineY);
-    doc.fillColor(INK).font("Helvetica").fontSize(8.8).text(flag, x + 20, lineY, { width: width - 32, lineGap: 2 });
+    doc.fillColor(FLAG).font("Helvetica-Bold").fontSize(10).text("•", x + 12, itemY);
+    doc.fillColor(INK).font("Helvetica").fontSize(8.8).text(flag, x + 20, itemY, { width: itemWidth, lineGap: 2 });
+    itemY += itemHeights[index] + 5;
   });
+  return y + boxHeight + 12;
 }
 
-function drawCaps(doc: PDFKit.PDFDocument, caps: AppliedCap[], x = MARGIN + 310, y = 320, width = 245) {
+function drawCaps(doc: PDFKit.PDFDocument, caps: AppliedCap[], x: number, y: number, width: number): number {
   const binding = caps.filter((cap) => cap.binding);
   const nonBinding = caps.filter((cap) => !cap.binding);
-  const totalHeight = 70 + (binding.length > 0 ? binding.length * 34 : 0) + (nonBinding.length > 0 ? 88 : 0);
+  const contentWidth = width - 24;
+  const nonBindingHeights = nonBinding.map((cap) => measureParagraph(doc, `• ${cap.label}`, { width: contentWidth, size: 8.6, lineGap: 2 }));
+  const bindingLabelHeights = binding.map((cap) => measureParagraph(doc, cap.label, { width: contentWidth, size: 8.6, lineGap: 2 }));
+  const bindingNoteHeights = binding.map((cap) => measureParagraph(doc, cap.note, { width: contentWidth, size: 8.2, lineGap: 2 }));
+  const noPenaltyText = "No penalty applied because these conditions did not further reduce an already-limited dimension score.";
+  const noPenaltyHeight = measureParagraph(doc, noPenaltyText, { width: contentWidth, size: 8.2, lineGap: 2 });
+  const conditionsHeight = nonBinding.length > 0
+    ? 16 + 17 + nonBindingHeights.reduce((sum, height) => sum + height + 5, 0) + noPenaltyHeight + 11
+    : 0;
+  const appliedHeight = binding.length > 0
+    ? 14 + binding.reduce((sum, _, index) => sum + bindingLabelHeights[index] + 6 + bindingNoteHeights[index] + 10, 0)
+    : 0;
+  const totalHeight = Math.max(70, 24 + conditionsHeight + appliedHeight);
 
   doc.roundedRect(x, y, width, totalHeight, 6).fillColor(GREY_SOFT).fill();
+  let currentY = y + 12;
 
   if (nonBinding.length > 0) {
-    doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(8.2).text("CAP CONDITIONS MET · NO SCORE PENALTY", x + 12, y + 12);
-    doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8.2).text(`${nonBinding.length} condition${nonBinding.length === 1 ? "" : "s"} met`, x + 12, y + 28, { width: width - 24 });
+    doc.fillColor(INK_MUTED).font("Helvetica-Bold").fontSize(8.2).text("CAP CONDITIONS MET · NO SCORE PENALTY", x + 12, currentY, { width: contentWidth });
+    currentY += 16;
+    doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8.2).text(`${nonBinding.length} condition${nonBinding.length === 1 ? "" : "s"} met`, x + 12, currentY, { width: contentWidth });
+    currentY += 17;
 
-    let itemY = y + 45;
-    nonBinding.forEach((cap) => {
-      doc.fillColor(INK).font("Helvetica").fontSize(8.6).text(`• ${cap.label}`, x + 12, itemY, { width: width - 24 });
-      itemY += 16;
+    nonBinding.forEach((cap, index) => {
+      doc.fillColor(INK).font("Helvetica").fontSize(8.6).text(`• ${cap.label}`, x + 12, currentY, { width: contentWidth, lineGap: 2 });
+      currentY += nonBindingHeights[index] + 5;
     });
 
-    doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8.2).text(
-      "No penalty applied because these conditions did not further reduce an already-limited dimension score.",
-      x + 12,
-      itemY + 6,
-      { width: width - 24, lineGap: 2 }
-    );
+    doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8.2).text(noPenaltyText, x + 12, currentY + 3, { width: contentWidth, lineGap: 2 });
+    currentY += noPenaltyHeight + 11;
   }
 
   if (binding.length > 0) {
-    doc.fillColor(FLAG).font("Helvetica-Bold").fontSize(8.2).text("CAP APPLIED · SCORE PENALTY", x + 12, y + 12);
-    let currentY = y + 26;
-    binding.forEach((cap) => {
-      doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.6).text(cap.label, x + 12, currentY, { width: width - 24 });
-      currentY += 18;
-      doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8.2).text(cap.note, x + 12, currentY, { width: width - 24, lineGap: 2 });
-      currentY += 22;
+    doc.fillColor(FLAG).font("Helvetica-Bold").fontSize(8.2).text("CAP APPLIED · SCORE PENALTY", x + 12, currentY, { width: contentWidth });
+    currentY += 14;
+    binding.forEach((cap, index) => {
+      doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.6).text(cap.label, x + 12, currentY, { width: contentWidth, lineGap: 2 });
+      currentY += bindingLabelHeights[index] + 6;
+      doc.fillColor(INK_MUTED).font("Helvetica").fontSize(8.2).text(cap.note, x + 12, currentY, { width: contentWidth, lineGap: 2 });
+      currentY += bindingNoteHeights[index] + 10;
     });
   }
+
+  return y + totalHeight + 12;
 }
 
 function drawDimension(doc: PDFKit.PDFDocument, dimension: ScoredReport["dimensions"][number], index: number, report: ScoredReport, pageNumber: number) {
@@ -266,18 +346,20 @@ export async function renderReportPdf(report: ScoredReport, callType: CallType):
     addHeader();
     document.y = 78;
 
-    const leftColWidth = 300;
-    const rightColX = MARGIN + leftColWidth + 22;
-    const rightColWidth = PAGE_WIDTH - rightColX - MARGIN;
+    const leftColWidth = 260;
+    const rightColX = 330;
+    const rightColWidth = 210;
+    let leftY = 118;
+    let rightY = 68;
 
-    drawOverallScore(document, report, rightColX - 8, 68);
-    drawBrief(document, report.brief, rightColX, 120, rightColWidth);
-    drawCaps(document, report.capsApplied, rightColX, 300, rightColWidth);
+    rightY = drawOverallScore(document, report, rightColX - 8, rightY, rightColWidth);
+    rightY = drawBrief(document, report.brief, rightColX, rightY + 16, rightColWidth);
+    rightY = drawCaps(document, report.capsApplied, rightColX, rightY + 16, rightColWidth);
 
-    drawOneThing(document, report, MARGIN, 118, leftColWidth);
-    drawRedFlags(document, report.redFlags, MARGIN, 310, leftColWidth);
+    leftY = drawOneThing(document, report, MARGIN, leftY, leftColWidth);
+    leftY = drawRedFlags(document, report.redFlags, MARGIN, leftY + 16, leftColWidth);
 
-    document.y = 410;
+    document.y = Math.max(leftY, rightY) + 12;
     drawPageFooter(document, pageNumber);
 
     pageNumber += 1;
