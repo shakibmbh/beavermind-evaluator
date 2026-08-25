@@ -1,146 +1,147 @@
 # Call Evaluator
 
-Paste a kick-off or coaching call transcript, get it scored against the
-client's rubric with a durable, shareable report and a downloadable PDF.
+Paste a kick-off or coaching call transcript. Get it scored against the
+client's rubric — a durable, shareable report plus a downloadable PDF.
+
+**Live:** [beavermind-evaluator.vercel.app](https://beavermind-evaluator.vercel.app)
 
 ## Stack
 
-- **Next.js 15** (App Router) on **Vercel** -- UI + API routes
-- **Supabase** (Postgres + Storage) -- the `runs` table and private PDF bucket
-- **Inngest** -- durable background execution. Each run is processed as a
-  checkpointed step function, decoupled from the HTTP request that created
-  it, with automatic per-step retries
-- **Gemini 2.5 Flash** (free tier) -- structured JSON scoring, 1M token
-  context (comfortably handles the largest transcript at ~65K characters)
-- **@react-pdf/renderer** -- server-side PDF generation, no headless browser
+| Layer | Choice | Why |
+|---|---|---|
+| UI + API | Next.js 15 (App Router) on Vercel | — |
+| Database + storage | Supabase (Postgres + Storage) | RLS locked down, PDFs served via signed URLs |
+| Background jobs | Inngest | Checkpointed steps, per-step retries, survives tab close |
+| Scoring model | Gemini 2.5 Flash | 1M token context, handles the largest sample (~65K chars) |
+| PDF rendering | PDFKit | Server-side, no headless browser |
+| Validation | Zod | Runtime check on model output, independent of Gemini's schema |
+| Tests | Vitest | 36 tests: invariants, dispatch failures, run API |
 
-Every piece above is free at this scale. No paid subscription is required
-anywhere in this stack.
+Free at this scale. No paid subscription required.
 
-## Architecture, in one paragraph
+## Architecture
 
-The browser never talks to Supabase or the LLM directly. Submitting a transcript
-inserts a row into Supabase and fires an Inngest event, then returns
-immediately with a run id -- this is what lets someone close the tab and
-come back later. Inngest calls back into `/api/inngest` one step at a time
-(call Gemini -> verify quotes against the transcript -> apply the rubric's
-automatic caps deterministically -> render and upload the PDF -> mark the
-run done), retrying any individual step that fails rather than the whole
-pipeline. The run page polls an ID-scoped server route so it always reflects
-the true current state: queued, running, done, or failed with a reason,
-without exposing direct table reads to anonymous browser clients.
+The browser never talks to Supabase or Gemini directly.
+
+1. Submit → insert a `runs` row, fire an Inngest event, return a run id immediately.
+2. Inngest runs one step at a time:
+   `mark running` → `call Gemini` → `resolve cited lines` → `apply caps` → `render + upload PDF` → `mark done`
+3. Any failed step retries on its own — the whole run doesn't restart.
+4. After retries are exhausted, `onFailure` writes a specific reason to the run.
+5. The run page polls an ID-scoped route (never the table directly) and always shows the true state: queued, running, done, or failed-with-reason.
+
+This is what lets someone close the tab and come back to a finished (or still-running) run later.
+
+## How evidence is enforced
+
+- The transcript is parsed into numbered lines (`L1`, `L2`, …) before it reaches Gemini.
+- The model cites evidence **by line ID only** — never by retyping or paraphrasing transcript text, even in prose fields like `reasoning` or `brief`.
+- The app resolves each cited ID against the real parsed transcript and builds the displayed quote from that lookup.
+- A citation either resolves to a real line or it doesn't — no fuzzy matching to game. Unresolved IDs are dropped and counted (`unverifiedQuoteCount`), and surfaced, not hidden.
+- No evidence for a dimension → the report says so. It never infers from tone or general mood.
+- One of the four sample transcripts exists specifically to test whether the system guesses instead of admitting it has nothing.
+
+**Caps follow the same rule:** the model says whether a cap is *triggered*, never applies its numeric effect — `scoring.ts` does that in code. One cap (coach talk-time share) isn't even asked of the model: it's computed straight from word counts in `talk-time.ts`, since it's a countable fact, not a judgment call.
+
+**Before any of this reaches scoring**, `rubric-invariants.ts` rejects malformed model output — unknown/duplicate IDs, out-of-range scores, illegal score-for-band, a disabled dimension with a nonzero score, a missing required dimension. A failure here triggers a retry, not a report with broken internals.
+
+## What the report contains
+
+- **The one thing** — highest-leverage change, and the score it would produce
+- **The brief** — a couple of sentences for whoever's reviewing the coach
+- **Red flags** — specific client-churn risks, even under a good score
+- **Grade + total** — rescaled to `/100`, mapped to the rubric's bands
+- **12 dimensions, each openable** — score, reasoning, supporting lines, quick fix
+- **Automatic caps** — shown as binding (cost points) vs. met-but-non-binding
+- **Download PDF** — same report, rendered server-side, stored as a durable artifact
+
+## A rubric detail worth knowing
+
+The coaching rubric's 12 dimension points sum to **105**, not the stated 100 — and to 90, not the stated 85, with Dimension 4 disabled. Rather than patch numbers to force a match, `scoring.ts` always rescales earned points over the literal sum of *active* dimensions' max points to a clean `/100`. This generalizes the rubric's own instruction (report on the 100 scale when a dimension is off) instead of hardcoding it.
+
+Two dimensions can be disabled per call — coaching D2 (diagnostics), D4 (movement coaching) — each excluded from both earned and available totals, not scored as zero against full weight.
 
 ## Setup
 
-### 1. Supabase
+**1. Supabase**
+- Create a free project at [supabase.com](https://supabase.com).
+- Run the migrations in `supabase/migrations/` in order (SQL editor). Creates `runs`, a private `reports` bucket, and locks down anon access.
+- Optional: run `supabase/verify_security.sql` to confirm anon has zero access.
+- Grab your project URL + `service_role` key from **Project Settings → API**.
 
-1. Create a project at [supabase.com](https://supabase.com) (free tier).
-2. Open the SQL editor and run the migrations in order. They create the
-  `runs` table with RLS enabled and a private `reports` storage bucket.
-3. From **Project Settings -> API**, grab your project URL, `anon` key, and
-   `service_role` key.
+**2. Gemini API key** — free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey), no billing needed.
 
-### 2. Gemini API key
-
-Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
-No billing account required for the free tier.
-
-### 3. Local environment
-
-```bash
+**3. Local env**
+```
 npm install
 cp .env.example .env.local
-# fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and GEMINI_API_KEY
+# fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY
 ```
 
-### 4. Inngest, locally
-
-```bash
+**4. Inngest, locally**
+```
 npm run dev            # terminal 1
-npx inngest-cli dev    # terminal 2 -- opens a dashboard at localhost:8288
+npx inngest-cli dev    # terminal 2 — dashboard at localhost:8288
 ```
 
-Submit a transcript at `localhost:3000` and watch the run process step by
-step in the Inngest dev dashboard before deploying anywhere.
+**5. Tests**
+```
+npm test
+```
 
-### 5. Deploy
-
-1. Push this repo to GitHub, public.
-2. Import it into Vercel. Add the same env vars from `.env.local` in the
-   Vercel project settings (Production + Preview).
-3. In the Vercel project, go to the **Marketplace** tab, install **Inngest**,
-   and connect it to this project -- it sets `INNGEST_EVENT_KEY` and
-   `INNGEST_SIGNING_KEY` automatically and re-syncs functions on every
-   deploy.
-4. Redeploy once the Inngest integration is connected.
+**6. Deploy**
+- Push to GitHub, public.
+- Import into Vercel, add the same env vars (Production + Preview).
+- In Vercel → Marketplace, install **Inngest** and connect it — sets `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` automatically.
+- Redeploy once connected.
 
 ## Project structure
 
 ```
 app/
-  page.tsx                  Submission form
-  run/[id]/page.tsx         Status + report page (server component)
-  api/runs/route.ts         POST: insert run, fire Inngest event, return id
-  api/inngest/route.ts      Inngest's serving endpoint (the step function lives here)
+  page.tsx                       Submission form
+  run/[id]/page.tsx              Status + report page
+  api/runs/route.ts              POST: insert run, fire event, return id
+  api/runs/[id]/route.ts         GET: polled by the run page
+  api/inngest/route.ts           Inngest's serving endpoint
+
 components/
-  SubmitForm.tsx            Call-type toggle + transcript textarea
-  RunStatus.tsx             Server polling, queued/running/failed/done states
-  ReportView.tsx            Grade, one thing, brief, red flags, dimensions, PDF link
-  DimensionCard.tsx         One openable dimension with evidence
-  ScoreBar.tsx               Band-colored score visualization
+  SubmitForm.tsx                 Call-type toggle + transcript input
+  RunStatus.tsx                  Polling; queued/running/failed/done
+  ReportView.tsx                 Grade, one thing, brief, flags, dimensions, PDF link
+  DimensionCard.tsx              One openable dimension, per-turn evidence
+  AutomaticCapsCard.tsx          Binding vs. non-binding caps
+  RedFlagsCard.tsx               Client-risk flags
+  ScoreGauge.tsx / ScoreBar.tsx  Score visuals
+
 lib/
-  rubrics/kickoff.ts         Kick-off rubric, encoded as structured data
-  rubrics/coaching.ts        Coaching rubric, same
-  rubrics/types.ts           Shared types for rubric specs and scored results
-  schema.ts                  Builds the Gemini responseSchema + zod validator from a rubric
-  gemini.ts                  Prompt construction + the Gemini API call
-  verify-quotes.ts           Strips any quote that isn't a verbatim transcript substring
-  scoring.ts                 Applies rubric caps deterministically, computes the rescaled total
-  pdf.tsx                    The report PDF document + render function
-  storage.ts                 Uploads the rendered PDF to Supabase Storage
-  functions/score-run.ts     The Inngest step function tying it all together
-supabase/migrations/0001_init.sql
+  rubrics/{kickoff,coaching}.ts  Rubrics as structured data
+  transcript.ts                  Raw text → numbered speaker turns
+  schema.ts                      Gemini responseSchema + zod validator
+  gemini.ts                      Prompt + call + line-ID evidence resolution
+  rubric-invariants.ts           Rejects malformed model output
+  talk-time.ts                   Deterministic coach talk-share calc
+  scoring.ts                     Caps + rescaled total, deterministic
+  pdf.ts                         Report PDF (PDFKit)
+  storage.ts                     Upload PDF → signed URL
+  run-response.ts                Shapes browser-facing response
+  run-dispatch.ts                Marks a run failed if it never queued
+  functions/score-run.ts         The Inngest step function
+
+supabase/
+  migrations/                    Schema + RLS lockdown, in order
+  verify_security.sql            Manual anon-access check
+
+scripts/
+  generate-sample-pdf.mjs        Renders a sample PDF from fixtures, no live services
 ```
 
-## Design decisions worth knowing before the Loom
+## Known limitations
 
-- **Evidence is enforced twice, not once.** The prompt instructs the model
-  to return only verbatim quotes or an empty array, but `verify-quotes.ts`
-  additionally checks every returned quote against the actual transcript
-  text as a substring match, after the fact, in code. A quote that doesn't
-  verify is silently dropped rather than trusted -- the report can end up
-  saying "no verbatim transcript evidence for this claim" even if the model
-  claimed otherwise.
-- **Caps are never trusted to the model's arithmetic.** The model reports
-  which automatic caps it believes are triggered and why; `scoring.ts`
-  applies the actual numeric effect (clamping a dimension, capping the
-  total) deterministically in code. This also produces the "which caps
-  fired" record the rubric asks for.
-- **The coaching rubric's own numbers don't quite add up.** Its 12
-  dimension point values literally sum to 105, not the "100 points" the
-  document states, and drop to 90 (not the stated 85) when Dimension 4 is
-  disabled. Rather than patch specific numbers to force a match, the
-  scoring logic always computes raw earned points over the literal sum of
-  active dimensions' max points, then rescales that ratio to a clean /100 --
-  which is consistent with the rubric's own instruction to report on the
-  100 scale when a dimension is switched off, generalized rather than
-  hardcoded.
-- **Two dimensions can be disabled per call** (coaching Dimension 2 --
-  diagnostics, and Dimension 4 -- movement coaching), each with its own
-  disable condition given to the model. Disabled dimensions are excluded
-  from both the earned-points and available-points totals, not scored as
-  zero against their full weight.
-- **PDF generation happens server-side**, inside the same Inngest step
-  function that produces the scored JSON, and is uploaded to Supabase
-  Storage rather than rendered on demand in the browser -- so the PDF is a
-  stable, durable artifact of the run itself, matching "the PDF is what the
-  client sees."
+- **Scope**: no voice agent, nothing beyond scoring a pasted kick-off/coaching transcript — that's the whole brief.
+- **Unused dependency**: `@react-pdf/renderer` is still in `package.json` but unused — rendering moved to PDFKit. Pending cleanup, not a design choice.
+- **Evidence resolution**: exact by line ID, which rules out false-flagging an accurate paraphrase — but depends on the transcript parsing into `[Speaker]: text` turns. A differently-shaped transcript won't produce citeable lines.
 
-## What's intentionally out of scope
+## About
 
-Per the brief: no voice agent, no scope beyond scoring a pasted kick-off or
-coaching transcript. Given the time budget, quote verification is a
-substring match rather than a fuzzy/semantic match -- good enough to catch
-outright fabrication, though a paraphrased-but-accurate quote could in
-theory be flagged as unverified. Worth naming as a known limitation rather
-than a silent gap.
+Company, coaches, and clients in the rubrics and sample transcripts are invented. Stage-two hiring exercise for the AI-Native Developer role at BeaverMind, built against a real slice of a production evaluation pipeline with identifying details changed.
